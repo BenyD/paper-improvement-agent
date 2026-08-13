@@ -81,6 +81,7 @@ export async function runEditAgent(
   const anthropic = new Anthropic();
   const candidates = new Map<string, CslItem>();
   let candidateSeq = 0;
+  let rateLimitedSearches = 0;
   const progress = (message: string) => onProgress?.(message);
   // Low-level API narration (throttle waits, 429 backoff) rides the same
   // channel while this run is active.
@@ -125,6 +126,7 @@ export async function runEditAgent(
 
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
+      if (turn > 0) progress(`Working on the edit (turn ${turn + 1})…`);
       const res = await anthropic.messages.create({
         model: modelId(),
         max_tokens: 4000,
@@ -199,6 +201,7 @@ export async function runEditAgent(
             };
           });
           const rateLimited = notes.some((n) => n.includes("rate-limited"));
+          if (rateLimited && listed.length === 0) rateLimitedSearches++;
           results.push({
             type: "tool_result",
             tool_use_id: use.id,

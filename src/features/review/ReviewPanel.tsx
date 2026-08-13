@@ -112,173 +112,177 @@ export function ReviewPanel({
     result?.notes.filter((n) => /rate.?limit|429/i.test(n)).length ?? 0;
 
   return (
-    <section aria-label="Peer review">
-      {phase === "idle" && (
-        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-            <ScanSearch className="size-5 text-muted-foreground" aria-hidden />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <p className="text-sm font-medium">No review yet</p>
-            <p className="max-w-xs text-sm text-muted-foreground">
-              Searches OpenAlex and Semantic Scholar for relevant work the paper
-              does not cite, and checks whether cited sources actually support
-              the claims attached to them.
-            </p>
-          </div>
-          <Button onClick={start}>
-            <ScanSearch aria-hidden /> Run peer review
-          </Button>
-        </div>
-      )}
-
-      {phase === "error" && (
-        <div className="mb-3 flex justify-end">
-          <Button onClick={start} size="sm">
-            <ScanSearch aria-hidden /> Try again
-          </Button>
-        </div>
-      )}
-
-      {/* Live region: progress + incoming findings are announced politely. */}
-      <output aria-live="polite" className="block">
-        {phase === "running" && (
-          <div className="mb-4 flex flex-col gap-4">
-            {/* Echoes the idle empty state's icon disc, so pressing the
-                button reads as the same surface coming alive. */}
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <ScanSearch
-                    className="size-4 animate-pulse text-muted-foreground"
-                    aria-hidden
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{progress}</p>
-              </div>
-              {activity && (
-                <p className="pl-[2.625rem] text-xs text-muted-foreground/70">
-                  {activity}
-                </p>
-              )}
+    <section aria-label="Peer review" className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {phase === "idle" && (
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-14 text-center">
+            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+              <ScanSearch
+                className="size-5 text-muted-foreground"
+                aria-hidden
+              />
             </div>
-            <div className="flex flex-col gap-3" aria-hidden>
-              {findings.length === 0 ? (
-                <>
-                  <FindingSkeleton />
-                  <FindingSkeleton />
-                  <FindingSkeleton short />
-                </>
-              ) : (
-                <FindingSkeleton short />
-              )}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-medium">No review yet</p>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Searches OpenAlex and Semantic Scholar for relevant work the
+                paper does not cite, and checks whether cited sources actually
+                support the claims attached to them.
+              </p>
             </div>
+            <Button onClick={start}>
+              <ScanSearch aria-hidden /> Run peer review
+            </Button>
           </div>
         )}
-      </output>
 
-      {(phase === "done" || findings.length > 0) && (
-        <div className="flex flex-col gap-6">
-          {result?.partial && phase !== "running" && (
-            <p className="flex items-center gap-2 rounded-lg bg-(--warning)/10 px-3 py-2 text-xs text-(--warning)">
-              <CircleAlert className="size-3.5 shrink-0" aria-hidden />
-              This review was interrupted before finishing. Resuming picks up
-              from the saved checkpoint without re-checking finished work.
-            </p>
-          )}
-          {result && rateLimitedCount >= 4 && phase !== "running" && (
-            <p className="flex items-start gap-2 rounded-lg bg-(--warning)/10 px-3 py-2 text-xs leading-relaxed text-(--warning)">
-              <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              <span>
-                {rateLimitedCount} literature searches were rate-limited by the
-                academic APIs, so missing-work coverage is partial. Running
-                again later fills the gap; claim checks were unaffected.
-              </span>
-            </p>
-          )}
-          {result && (
-            <p className="flex items-start gap-2 rounded-lg bg-(--info)/10 px-3 py-2 text-xs leading-relaxed text-(--info)">
-              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              <span>
-                {result.stats.sectionsScanned} sections scanned,{" "}
-                {result.stats.queriesRun} searches,{" "}
-                {result.stats.candidatesConsidered} candidates considered.{" "}
-                {result.stats.claimsChecked} claims checked against{" "}
-                {result.stats.entriesChecked} abstracts (
-                {result.stats.claimsSupported} supported
-                {result.stats.mismatchesWithdrawn > 0 &&
-                  `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
-                {result.stats.skippedNoAbstract > 0 &&
-                  `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
-                ).
-              </span>
-            </p>
-          )}
+        {phase === "error" && (
+          <div className="mb-3 flex justify-end">
+            <Button onClick={start} size="sm">
+              <ScanSearch aria-hidden /> Try again
+            </Button>
+          </div>
+        )}
 
-          <FindingGroup
-            title={`Claim-citation mismatches (${mismatches.length})`}
-            findings={mismatches}
-            empty="Every checked claim was supported by its cited source."
-            onFix={onFix}
-          />
-          <FindingGroup
-            title={`Possibly missing citations (${missing.length})`}
-            findings={missing}
-            empty="No missing work found beyond the existing references."
-            onFix={onFix}
-          />
-
-          {result && result.notes.length > 0 && (
-            <details className="rounded-lg border border-border">
-              <summary className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Process notes ({result.notes.length}): skips, empty searches,
-                errors
-              </summary>
-              <Separator />
-              <ul className="flex flex-col divide-y divide-border/60">
-                {result.notes.map((note, i) => (
-                  <li
-                    key={`note-${i}`}
-                    className="flex items-start gap-2 px-4 py-2 text-xs leading-relaxed text-muted-foreground"
-                  >
-                    {/(failed|error|rate-limited|aborted|interrupted)/i.test(
-                      note,
-                    ) ? (
-                      <CircleAlert
-                        className="mt-0.5 size-3.5 shrink-0 text-(--warning)"
-                        aria-hidden
-                      />
-                    ) : (
-                      <Info
-                        className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
-                        aria-hidden
-                      />
-                    )}
-                    <span>{note}</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-
-          {result && (
-            // Sticky action bar at the panel bottom, mirroring the edit
-            // tab's composer; -mx/-mb bleed over the tab padding.
-            <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 border-t border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-              <Button
-                onClick={start}
-                disabled={phase === "running"}
-                className="w-full"
-              >
-                {phase === "running" ? (
-                  <Loader2 className="animate-spin" aria-hidden />
-                ) : (
-                  <ScanSearch aria-hidden />
+        {/* Live region: progress + incoming findings are announced politely. */}
+        <output aria-live="polite" className="block">
+          {phase === "running" && (
+            <div className="mb-4 flex flex-col gap-4">
+              {/* Echoes the idle empty state's icon disc, so pressing the
+                button reads as the same surface coming alive. */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <ScanSearch
+                      className="size-4 animate-pulse text-muted-foreground"
+                      aria-hidden
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">{progress}</p>
+                </div>
+                {activity && (
+                  <p className="pl-[2.625rem] text-xs text-muted-foreground/70">
+                    {activity}
+                  </p>
                 )}
-                {result.partial ? "Resume review" : "Run again"}
-              </Button>
+              </div>
+              <div className="flex flex-col gap-3" aria-hidden>
+                {findings.length === 0 ? (
+                  <>
+                    <FindingSkeleton />
+                    <FindingSkeleton />
+                    <FindingSkeleton short />
+                  </>
+                ) : (
+                  <FindingSkeleton short />
+                )}
+              </div>
             </div>
           )}
+        </output>
+
+        {(phase === "done" || findings.length > 0) && (
+          <div className="flex flex-col gap-6">
+            {result?.partial && phase !== "running" && (
+              <p className="flex items-center gap-2 rounded-lg bg-(--warning)/10 px-3 py-2 text-xs text-(--warning)">
+                <CircleAlert className="size-3.5 shrink-0" aria-hidden />
+                This review was interrupted before finishing. Resuming picks up
+                from the saved checkpoint without re-checking finished work.
+              </p>
+            )}
+            {result && rateLimitedCount >= 4 && phase !== "running" && (
+              <p className="flex items-start gap-2 rounded-lg bg-(--warning)/10 px-3 py-2 text-xs leading-relaxed text-(--warning)">
+                <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                <span>
+                  {rateLimitedCount} literature searches were rate-limited by
+                  the academic APIs, so missing-work coverage is partial.
+                  Running again later fills the gap; claim checks were
+                  unaffected.
+                </span>
+              </p>
+            )}
+            {result && (
+              <p className="flex items-start gap-2 rounded-lg bg-(--info)/10 px-3 py-2 text-xs leading-relaxed text-(--info)">
+                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                <span>
+                  {result.stats.sectionsScanned} sections scanned,{" "}
+                  {result.stats.queriesRun} searches,{" "}
+                  {result.stats.candidatesConsidered} candidates considered.{" "}
+                  {result.stats.claimsChecked} claims checked against{" "}
+                  {result.stats.entriesChecked} abstracts (
+                  {result.stats.claimsSupported} supported
+                  {result.stats.mismatchesWithdrawn > 0 &&
+                    `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
+                  {result.stats.skippedNoAbstract > 0 &&
+                    `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
+                  ).
+                </span>
+              </p>
+            )}
+
+            <FindingGroup
+              title={`Claim-citation mismatches (${mismatches.length})`}
+              findings={mismatches}
+              empty="Every checked claim was supported by its cited source."
+              onFix={onFix}
+            />
+            <FindingGroup
+              title={`Possibly missing citations (${missing.length})`}
+              findings={missing}
+              empty="No missing work found beyond the existing references."
+              onFix={onFix}
+            />
+
+            {result && result.notes.length > 0 && (
+              <details className="rounded-lg border border-border">
+                <summary className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  Process notes ({result.notes.length}): skips, empty searches,
+                  errors
+                </summary>
+                <Separator />
+                <ul className="flex flex-col divide-y divide-border/60">
+                  {result.notes.map((note, i) => (
+                    <li
+                      key={`note-${i}`}
+                      className="flex items-start gap-2 px-4 py-2 text-xs leading-relaxed text-muted-foreground"
+                    >
+                      {/(failed|error|rate-limited|aborted|interrupted)/i.test(
+                        note,
+                      ) ? (
+                        <CircleAlert
+                          className="mt-0.5 size-3.5 shrink-0 text-(--warning)"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Info
+                          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
+                          aria-hidden
+                        />
+                      )}
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+      </div>
+
+      {result && (
+        <div className="shrink-0 border-t border-border p-3">
+          <Button
+            onClick={start}
+            disabled={phase === "running"}
+            className="w-full"
+          >
+            {phase === "running" ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <ScanSearch aria-hidden />
+            )}
+            {result.partial ? "Resume review" : "Run again"}
+          </Button>
         </div>
       )}
     </section>

@@ -41,10 +41,7 @@ export function AssistantTabs({
           </TabsTrigger>
         </TabsList>
       </div>
-      <TabsContent
-        value="review"
-        className="relative flex-1 overflow-y-auto p-4"
-      >
+      <TabsContent value="review" className="min-h-0 flex-1">
         <ReviewPanel
           paperId={doc.id}
           initialReview={review}
