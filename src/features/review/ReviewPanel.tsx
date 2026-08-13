@@ -73,37 +73,31 @@ export function ReviewPanel({
   const missing = findings.filter((f) => f.kind === "missing-work");
 
   return (
-    <section aria-labelledby="review-heading">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2
-          id="review-heading"
-          className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          Peer review
-        </h2>
-        <Button onClick={start} disabled={phase === "running"}>
-          {phase === "running" && (
-            <Loader2 className="animate-spin" aria-hidden />
-          )}
-          {phase === "running"
-            ? "Reviewing…"
-            : result
-              ? "Run again"
-              : "Run peer review"}
-        </Button>
-      </div>
-
+    <section aria-label="Peer review">
       {phase === "idle" && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-14 text-center">
           <div className="flex size-12 items-center justify-center rounded-full bg-muted">
             <ScanSearch className="size-5 text-muted-foreground" aria-hidden />
           </div>
-          <p className="text-sm font-medium">No review yet</p>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            Searches OpenAlex and Semantic Scholar for relevant work the paper
-            does not cite, and checks whether cited sources actually support the
-            claims attached to them.
-          </p>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium">No review yet</p>
+            <p className="max-w-xs text-sm text-muted-foreground">
+              Searches OpenAlex and Semantic Scholar for relevant work the paper
+              does not cite, and checks whether cited sources actually support
+              the claims attached to them.
+            </p>
+          </div>
+          <Button onClick={start}>
+            <ScanSearch aria-hidden /> Run peer review
+          </Button>
+        </div>
+      )}
+
+      {phase === "error" && (
+        <div className="mb-3 flex justify-end">
+          <Button onClick={start} variant="outline" size="sm">
+            <ScanSearch aria-hidden /> Try again
+          </Button>
         </div>
       )}
 
@@ -129,21 +123,37 @@ export function ReviewPanel({
       </output>
 
       {(phase === "done" || findings.length > 0) && (
-        <div className="mt-2 flex flex-col gap-6">
+        <div className="flex flex-col gap-6">
           {result && (
-            <p className="text-xs text-muted-foreground">
-              {result.stats.sectionsScanned} sections scanned,{" "}
-              {result.stats.queriesRun} searches,{" "}
-              {result.stats.candidatesConsidered} candidates considered.{" "}
-              {result.stats.claimsChecked} claims checked against{" "}
-              {result.stats.entriesChecked} abstracts (
-              {result.stats.claimsSupported} supported
-              {result.stats.mismatchesWithdrawn > 0 &&
-                `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
-              {result.stats.skippedNoAbstract > 0 &&
-                `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
-              ). Model: {result.model}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                {result.stats.sectionsScanned} sections scanned,{" "}
+                {result.stats.queriesRun} searches,{" "}
+                {result.stats.candidatesConsidered} candidates considered.{" "}
+                {result.stats.claimsChecked} claims checked against{" "}
+                {result.stats.entriesChecked} abstracts (
+                {result.stats.claimsSupported} supported
+                {result.stats.mismatchesWithdrawn > 0 &&
+                  `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
+                {result.stats.skippedNoAbstract > 0 &&
+                  `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
+                ). Model: {result.model}
+              </p>
+              <Button
+                onClick={start}
+                variant="outline"
+                size="sm"
+                disabled={phase === "running"}
+                className="shrink-0"
+              >
+                {phase === "running" ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : (
+                  <ScanSearch aria-hidden />
+                )}
+                Run again
+              </Button>
+            </div>
           )}
 
           <FindingGroup
