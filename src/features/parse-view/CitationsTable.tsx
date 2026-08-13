@@ -138,10 +138,10 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry) => (
+              {entries.map((entry, i) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    {entry.marker ?? "•"}
+                    {entry.marker ?? i + 1}
                   </TableCell>
                   <TableCell className="hidden max-w-40 truncate whitespace-nowrap sm:table-cell">
                     {formatAuthors(entry)}
@@ -163,7 +163,7 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
                       markers.filter((m) => m.targets.includes(entry.id)).length
                     ) : (
                       <span className="text-amber-600 dark:text-amber-400">
-                        never
+                        uncited
                       </span>
                     )}
                   </TableCell>

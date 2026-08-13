@@ -196,7 +196,7 @@ export function ReviewPanel({
                   `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
                 {result.stats.skippedNoAbstract > 0 &&
                   `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
-                ). Model: {result.model}
+                ).
               </span>
             </p>
           )}
