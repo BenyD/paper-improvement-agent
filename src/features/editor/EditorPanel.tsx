@@ -355,11 +355,6 @@ export function EditorPanel({
                 <p className="text-sm text-muted-foreground">
                   {reviewing.summary}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {reviewing.ops.length} operation
-                  {reviewing.ops.length === 1 ? "" : "s"}, validated (no
-                  citations lost)
-                </p>
               </DialogHeader>
               <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
                 {reviewing.ops.map((op, j) => (
@@ -367,7 +362,7 @@ export function EditorPanel({
                   <OpView key={j} op={op} doc={doc} />
                 ))}
               </div>
-              <div className="flex items-center gap-2 border-t border-border px-5 py-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border px-5 py-3">
                 {reviewing.status === "proposed" ? (
                   <>
                     <Button
@@ -402,6 +397,11 @@ export function EditorPanel({
                     {reviewing.status}
                   </Badge>
                 )}
+                <span className="text-xs text-muted-foreground">
+                  {reviewing.ops.length} operation
+                  {reviewing.ops.length === 1 ? "" : "s"}, validated (no
+                  citations lost)
+                </span>
               </div>
             </>
           )}
