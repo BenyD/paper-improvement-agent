@@ -33,11 +33,12 @@ export function ExportActions({ doc }: { doc: PaperDocument }) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          className="items-start"
           render={
             <a href={`/api/papers/${doc.id}/export?format=tex`} download />
           }
         >
-          <FileCode aria-hidden />
+          <FileCode className="mt-0.5" aria-hidden />
           <div className="flex flex-col">
             <span>LaTeX source (.tex)</span>
             <span className="text-xs text-muted-foreground">
@@ -46,11 +47,12 @@ export function ExportActions({ doc }: { doc: PaperDocument }) {
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem
+          className="items-start"
           render={
             <a href={`/api/papers/${doc.id}/export?format=bib`} download />
           }
         >
-          <FileText aria-hidden />
+          <FileText className="mt-0.5" aria-hidden />
           <div className="flex flex-col">
             <span>BibTeX (.bib)</span>
             <span className="text-xs text-muted-foreground">
