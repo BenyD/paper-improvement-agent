@@ -193,11 +193,14 @@ function detectTitle(lines: Line[], bodySize: number): string {
   const maxSize = Math.max(...page1.map((l) => l.fontSize));
   if (maxSize < bodySize * 1.15) return "";
   // Collect consecutive lines at (near) the max size — multi-line titles.
+  // Join with hyphenation repair: a line break inside "LAN- GUAGE" is
+  // typesetting, not two words.
   const titleLines = page1.filter((l) => l.fontSize >= maxSize * 0.95);
   return titleLines
     .slice(0, 4)
     .map((l) => l.text)
     .join(" ")
+    .replace(/(\p{L})- (\p{L})/gu, "$1$2")
     .trim();
 }
 

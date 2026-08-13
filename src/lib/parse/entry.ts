@@ -130,6 +130,18 @@ function pickTitleSegment(segments: string[]): string | null {
   const clean = (s: string) =>
     s.replace(/[.]$/, "").replace(/^["“]|["”]$/g, "");
 
+  // IEEE quotes the title outright: Author, "Title of the paper," Venue —
+  // IEEE Access sets the quotes as doubled single quotes (‘‘...’’). A quoted
+  // segment of real length is the strongest possible signal.
+  const joined = segments.join(" ");
+  const quoted =
+    joined.match(/["“]([^"“”]{15,300}?)[,.]?["”]/) ??
+    joined.match(/‘‘(.{15,300}?)[,.]?’’/);
+  if (quoted) {
+    const t = quoted[1].replace(/[,.]$/, "").trim();
+    if (t.split(/\s+/).length >= 3 && !DOI_RE.test(t)) return t;
+  }
+
   // APA places the title directly after the parenthesized year:
   // "Devlin, J., Chang, M. W. (2019). Title here. Venue." — split there first.
   const afterYear = segments
