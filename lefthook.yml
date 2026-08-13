@@ -1,0 +1,27 @@
+# Git hooks runner. Installed via the `prepare` script on `npm install`.
+# Mirrors the lensdrop setup: lint + typecheck + tests pre-commit,
+# Conventional Commits + no-AI-attribution on the message.
+
+pre-commit:
+  parallel: true
+  jobs:
+    # Lint + format staged files with Biome, auto-fix, and re-stage the result.
+    # `npx --no-install` never falls back to the registry.
+    - name: biome
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
+      run: npx --no-install biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    - name: types
+      run: npm run typecheck
+    - name: tests
+      run: npx --no-install vitest run --passWithNoTests
+
+commit-msg:
+  jobs:
+    # Enforce Conventional Commits (feat:, fix:, chore:, ...).
+    - name: commitlint
+      run: npx --no-install commitlint --edit {1}
+    # Reject AI attribution trailers (Co-Authored-By: Claude, Generated with
+    # Claude Code, etc.). Commits are plain conventional commits, nothing else.
+    - name: no-ai-attribution
+      run: sh -c '! grep -qiE "(co-authored-by:.*(claude|anthropic))|(generated with.*(claude|copilot|ai))" "$1"' -- {1}
