@@ -52,8 +52,8 @@ export function SourcePdfPane({
   const ctx = useContext(SourcePdfContext);
   if (!ctx?.open) return null;
   return (
-    <div className="w-full border-t border-border p-4 lg:sticky lg:top-0 lg:h-dvh lg:w-[44%] lg:shrink-0 lg:border-t-0 lg:border-l">
-      <div className="flex h-[65vh] flex-col gap-1.5 lg:h-full">
+    <div className="w-full border-t border-border p-3 lg:sticky lg:top-0 lg:h-dvh lg:w-1/2 lg:shrink-0 lg:border-t-0 lg:border-l">
+      <div className="flex h-[70vh] flex-col gap-1.5 lg:h-full">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Source PDF
@@ -68,9 +68,11 @@ export function SourcePdfPane({
             <ExternalLink className="size-3" aria-hidden />
           </a>
         </div>
+        {/* Chrome PDF-viewer open parameters: no toolbar, no side panes,
+            zoom to page width — the pane is for reading, not managing. */}
         <iframe
           title={`Original PDF: ${filename}`}
-          src={`/api/papers/${paperId}/pdf`}
+          src={`/api/papers/${paperId}/pdf#toolbar=0&navpanes=0&view=FitH`}
           className="w-full flex-1 rounded-xl border border-border bg-muted"
         />
       </div>
