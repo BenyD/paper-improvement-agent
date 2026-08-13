@@ -83,6 +83,23 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
   );
 }
 
+/** Internal style enums → words a researcher recognizes. */
+const CITATION_STYLE_CHIP: Record<string, string> = {
+  "numeric-bracket": "Cites with [1]",
+  superscript: "Cites with superscripts",
+  "author-year": "Cites with (Author, year)",
+};
+const CITATION_STYLE_LABEL: Record<string, string> = {
+  "numeric-bracket": "numeric brackets like [1]",
+  superscript: "superscript numbers",
+  "author-year": "(Author, year) parentheticals",
+};
+const ENTRY_STYLE_LABEL: Record<string, string> = {
+  bracket: "[1]-numbered entries",
+  "number-dot": "1.-numbered entries",
+  "hanging-indent": "hanging-indent entries",
+};
+
 const INITIAL_ROWS = 25;
 
 export function CitationsTable({ doc }: { doc: PaperDocument }) {
@@ -128,8 +145,11 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
               {orphans.length === 1 ? "" : "s"}
             </Badge>
           )}
-          <Badge variant="secondary" className="font-mono text-[11px]">
-            {entryStyle ?? "unknown"} / {citationStyle}
+          <Badge
+            variant="secondary"
+            title={`Detected from the paper and used for export formatting. Reference list: ${ENTRY_STYLE_LABEL[entryStyle ?? ""] ?? "unknown"}. In-text: ${CITATION_STYLE_LABEL[citationStyle] ?? citationStyle}.`}
+          >
+            {CITATION_STYLE_CHIP[citationStyle] ?? "Unknown citation style"}
           </Badge>
         </div>
       </div>
