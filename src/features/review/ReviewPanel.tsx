@@ -34,6 +34,7 @@ export function ReviewPanel({
   );
   const [result, setResult] = useState<ReviewResult | null>(initialReview);
   const [progress, setProgress] = useState<string>("");
+  const [activity, setActivity] = useState<string>("");
   const esRef = useRef<EventSource | null>(null);
 
   // Close the stream if the panel unmounts mid-run (e.g. a router refresh
@@ -68,7 +69,11 @@ export function ReviewPanel({
     esRef.current = es;
     es.onmessage = (msg) => {
       const ev = JSON.parse(msg.data) as ReviewEvent;
-      if (ev.type === "progress") setProgress(ev.message);
+      if (ev.type === "progress") {
+        setProgress(ev.message);
+        setActivity("");
+      }
+      if (ev.type === "activity") setActivity(ev.message);
       if (ev.type === "finding") setFindings((prev) => [...prev, ev.finding]);
       if (ev.type === "error")
         toast.error("Review error", { description: ev.message });
@@ -137,14 +142,21 @@ export function ReviewPanel({
           <div className="mb-4 flex flex-col gap-4">
             {/* Echoes the idle empty state's icon disc, so pressing the
                 button reads as the same surface coming alive. */}
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                <ScanSearch
-                  className="size-4 animate-pulse text-muted-foreground"
-                  aria-hidden
-                />
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <ScanSearch
+                    className="size-4 animate-pulse text-muted-foreground"
+                    aria-hidden
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{progress}</p>
               </div>
-              <p className="text-sm text-muted-foreground">{progress}</p>
+              {activity && (
+                <p className="pl-[2.625rem] text-xs text-muted-foreground/70">
+                  {activity}
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-3" aria-hidden>
               {findings.length === 0 ? (

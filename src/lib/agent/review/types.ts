@@ -61,6 +61,8 @@ export interface ReviewResult {
 
 export type ReviewEvent =
   | { type: "progress"; message: string }
+  /** Low-level live narration (API waits, retries) under the progress line. */
+  | { type: "activity"; message: string }
   | { type: "finding"; finding: Finding }
   | { type: "done"; result: ReviewResult }
   | { type: "error"; message: string };

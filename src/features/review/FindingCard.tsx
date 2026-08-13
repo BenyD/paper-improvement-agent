@@ -10,14 +10,30 @@ const SEVERITY_STYLES: Record<Finding["severity"], string> = {
   low: "border-border",
 };
 
+const SEVERITY_BADGE: Record<Finding["severity"], string> = {
+  high: "bg-destructive/10 text-destructive",
+  medium: "bg-(--warning)/10 text-(--warning)",
+  low: "bg-muted text-muted-foreground",
+};
+
+const CONFIDENCE_BADGE: Record<Finding["confidence"], string> = {
+  high: "bg-(--success)/10 text-(--success)",
+  medium: "bg-(--info)/10 text-(--info)",
+  low: "bg-muted text-muted-foreground",
+};
+
 export function FindingCard({ finding }: { finding: Finding }) {
   return (
     <Card className={cn("py-4", SEVERITY_STYLES[finding.severity])}>
       <CardContent className="px-4">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">{finding.summary}</span>
-          <Badge variant="outline">{finding.severity} severity</Badge>
-          <Badge variant="outline">{finding.confidence} confidence</Badge>
+          <Badge className={SEVERITY_BADGE[finding.severity]}>
+            {finding.severity} severity
+          </Badge>
+          <Badge className={CONFIDENCE_BADGE[finding.confidence]}>
+            {finding.confidence} confidence
+          </Badge>
         </div>
         <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
           {finding.detail}
@@ -26,12 +42,17 @@ export function FindingCard({ finding }: { finding: Finding }) {
           href={finding.source.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-3 inline-flex items-start gap-1.5 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {finding.source.title}
-          {finding.source.year ? ` (${finding.source.year})` : ""}
-          {finding.source.authors ? ` — ${finding.source.authors}` : ""}
-          <ExternalLink className="size-3.5 shrink-0" aria-hidden />
+          <span>
+            {finding.source.title}
+            {finding.source.year ? ` (${finding.source.year})` : ""}
+            {finding.source.authors ? `, by ${finding.source.authors}` : ""}
+          </span>
+          <ExternalLink
+            className="mt-1 size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
         </a>
       </CardContent>
     </Card>

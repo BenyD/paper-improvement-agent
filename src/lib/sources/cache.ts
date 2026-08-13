@@ -28,6 +28,47 @@ const HOST_SPACING_MS: Record<string, number> = {
 
 const hostQueues = new Map<string, Promise<unknown>>();
 
+/**
+ * Live activity feed: one subscriber (the running review) receives low-level
+ * request events so the UI can narrate waits instead of appearing hung.
+ * Single-subscriber by design — one interactive run at a time locally.
+ */
+let activityListener: ((message: string) => void) | null = null;
+export function onSourceActivity(fn: (message: string) => void): () => void {
+  activityListener = fn;
+  return () => {
+    if (activityListener === fn) activityListener = null;
+  };
+}
+const activity = (message: string) => activityListener?.(message);
+
+/**
+ * Rate-limit circuit breaker: after a host answers 429 to every attempt of a
+ * request, further calls to it fail fast for a cooldown instead of grinding
+ * through backoff per query. Callers already treat SourceError as an honest
+ * "could not verify/search" note, and checkpoint/resume or Retry verification
+ * fill the gap once the pool recovers.
+ */
+const BREAKER_THRESHOLD = 3;
+const BREAKER_COOLDOWN_MS = 90_000;
+const breaker = new Map<string, { consecutive: number; openUntil: number }>();
+
+function breakerState(host: string) {
+  let s = breaker.get(host);
+  if (!s) {
+    s = { consecutive: 0, openUntil: 0 };
+    breaker.set(host, s);
+  }
+  return s;
+}
+
+const shortHost = (host: string) =>
+  host.includes("semanticscholar")
+    ? "Semantic Scholar"
+    : host.includes("openalex")
+      ? "OpenAlex"
+      : host;
+
 function throttledByHost<T>(host: string, fn: () => Promise<T>): Promise<T> {
   const spacing = HOST_SPACING_MS[host] ?? 0;
   const prev = hostQueues.get(host) ?? Promise.resolve();
@@ -72,9 +113,24 @@ export async function cachedFetchJson(
   }
 
   const host = new URL(url).hostname;
+  const name = shortHost(host);
+  const state = breakerState(host);
+  if (Date.now() < state.openUntil) {
+    activity(`${name}: rate limited, skipping calls briefly`);
+    throw new SourceError(
+      host,
+      "rate-limited (skipped: repeated HTTP 429, cooling down)",
+      429,
+    );
+  }
+
+  const query = new URL(url).searchParams.get("query");
   const body = await throttledByHost(host, async () => {
     let lastError: SourceError | null = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      activity(
+        query ? `${name}: searching "${query}"` : `${name}: fetching records`,
+      );
       let res: Response;
       try {
         res = await fetch(url, {
@@ -91,18 +147,34 @@ export async function cachedFetchJson(
           `Network error: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
-      if (res.ok) return (await res.json()) as unknown;
+      if (res.ok) {
+        state.consecutive = 0;
+        return (await res.json()) as unknown;
+      }
 
+      if (res.status === 429) {
+        state.consecutive++;
+        if (state.consecutive >= BREAKER_THRESHOLD) {
+          state.openUntil = Date.now() + BREAKER_COOLDOWN_MS;
+        }
+      }
       lastError = new SourceError(
         host,
         res.status === 429 ? `rate-limited (HTTP 429)` : `HTTP ${res.status}`,
         res.status,
       );
       const retryable = res.status === 429 || res.status >= 500;
-      if (!retryable || attempt === MAX_ATTEMPTS) throw lastError;
-      await new Promise((r) =>
-        setTimeout(r, 2500 * attempt + Math.random() * 1000),
+      if (
+        !retryable ||
+        attempt === MAX_ATTEMPTS ||
+        Date.now() < state.openUntil
+      )
+        throw lastError;
+      const waitMs = 2500 * attempt + Math.random() * 1000;
+      activity(
+        `${name}: rate limited, retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt + 1}/${MAX_ATTEMPTS})`,
       );
+      await new Promise((r) => setTimeout(r, waitMs));
     }
     throw lastError ?? new SourceError(host, "unreachable");
   });

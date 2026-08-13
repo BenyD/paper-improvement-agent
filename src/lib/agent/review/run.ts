@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PaperDocument } from "@/lib/doc/types";
+import { onSourceActivity } from "@/lib/sources/cache";
 import { modelId } from "../client";
 import {
   checkableEntries,
@@ -75,6 +76,12 @@ export async function runReview(
     result.findings.push(f);
     emit({ type: "finding", finding: f });
   };
+
+  // Narrate API-level waits (throttles, 429 backoff) live under the progress
+  // line; unsubscribed in the finally below.
+  const unsubscribe = onSourceActivity((message) =>
+    emit({ type: "activity", message }),
+  );
 
   if (prior) {
     emit({
@@ -220,6 +227,7 @@ export async function runReview(
     emit({ type: "error", message });
   }
 
+  unsubscribe();
   if (signal?.aborted) {
     result.notes.push(
       "Review interrupted by the client; a checkpoint was saved and the next run resumes from it.",
