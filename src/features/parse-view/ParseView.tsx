@@ -13,6 +13,21 @@ import type { PaperDocument } from "@/lib/doc/types";
 import { CitationsTable } from "./CitationsTable";
 import { InlineIssues, issuesFor } from "./InlineIssues";
 
+/**
+ * PDF tables have no text structure — their cells extract as loose numeric
+ * fragments. Detect paragraphs dominated by such tokens so the UI can present
+ * them as layout data rather than prose (they stay in the document: honesty,
+ * and the exporter keeps working with the full content).
+ */
+function isTableDebris(text: string): boolean {
+  const tokens = text.split(/\s+/);
+  if (tokens.length < 4) return false;
+  const dataish = tokens.filter(
+    (t) => /^[\d.,()%×±\-–]+$/.test(t) || t.length <= 2,
+  ).length;
+  return dataish / tokens.length >= 0.6;
+}
+
 /** Render ⟦^n⟧ superscript-marker tokens from P1 as real superscripts. */
 function renderParagraph(text: string) {
   const parts = text.split(/⟦\^([\d\s,;–-]+)⟧/);
@@ -107,14 +122,24 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
                     paddingLeft: `${2.375 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
                   }}
                 >
-                  {section.paragraphs.map((p, i) => (
-                    <p
-                      key={`${section.id}-${i}`}
-                      className="text-sm leading-relaxed text-muted-foreground"
-                    >
-                      {renderParagraph(p)}
-                    </p>
-                  ))}
+                  {section.paragraphs.map((p, i) =>
+                    isTableDebris(p) ? (
+                      <p
+                        key={`${section.id}-${i}`}
+                        title="Table or figure data from the PDF layout; tables have no text structure in PDFs."
+                        className="rounded-md bg-muted/50 px-2 py-1 font-mono text-xs leading-relaxed text-muted-foreground/70"
+                      >
+                        {p}
+                      </p>
+                    ) : (
+                      <p
+                        key={`${section.id}-${i}`}
+                        className="text-sm leading-relaxed text-muted-foreground"
+                      >
+                        {renderParagraph(p)}
+                      </p>
+                    ),
+                  )}
                 </div>
               </details>
             </li>
