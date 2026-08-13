@@ -62,7 +62,9 @@ export async function listPapers(limit = 20): Promise<PaperListing[]> {
       title: doc.title || doc.meta.filename,
       filename: doc.meta.filename,
       uploadedAt: doc.meta.uploadedAt,
-      referenceCount: doc.citations.entries.length,
+      // Documents parsed by older pipeline versions may predate the
+      // citations field — render them rather than crash the library.
+      referenceCount: doc.citations?.entries?.length ?? 0,
     });
   }
   return listings
