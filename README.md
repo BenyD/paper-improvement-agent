@@ -37,7 +37,7 @@ See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) — covers the citation-parsi
 
 ## Where AI tools were used
 
-This project was built with Claude Code (Claude Fable 5) driving implementation, with all decisions reviewed and directed in conversation.
+This project was built with AI coding tools driving implementation, with all decisions reviewed and directed in conversation.
 
 - **AI-written**: essentially all code and documentation drafts, generated phase by phase under human direction.
 - **Human-directed and verified**: the phase plan and scope decisions (framework rejection, no-DB/no-auth, filesystem storage), tooling conventions (Biome/lefthook/commitlint mirrored from an existing project), API budget/model choices, and review of every proposal before it was committed.
