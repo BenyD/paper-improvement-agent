@@ -21,7 +21,9 @@ export class SourceError extends Error {
  */
 const HOST_SPACING_MS: Record<string, number> = {
   "api.semanticscholar.org": 1100,
-  "api.openalex.org": 120,
+  // Search endpoints are billed heavier than lookups in OpenAlex's credit
+  // pool — pace them to survive bursts (e.g. repeated review runs).
+  "api.openalex.org": 400,
 };
 
 const hostQueues = new Map<string, Promise<unknown>>();
@@ -99,7 +101,7 @@ export async function cachedFetchJson(
       const retryable = res.status === 429 || res.status >= 500;
       if (!retryable || attempt === MAX_ATTEMPTS) throw lastError;
       await new Promise((r) =>
-        setTimeout(r, 1000 * attempt + Math.random() * 500),
+        setTimeout(r, 2500 * attempt + Math.random() * 1000),
       );
     }
     throw lastError ?? new SourceError(host, "unreachable");

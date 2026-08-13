@@ -29,5 +29,7 @@ Verdicts:
 - "cannot-tell": the abstract alone is insufficient to judge (e.g. the claim concerns a detail abstracts omit).
 Rules:
 - Judge only from the abstract given. Do not use outside knowledge of the paper.
-- "cannot-tell" is an honest and acceptable answer; prefer it over guessing.
+- Abstracts omit most details. If the claim concerns specifics an abstract would not state (hyperparameters, dataset sizes, experimental settings, specific comparisons), the verdict is "cannot-tell" — NOT "does-not-support".
+- Reserve "does-not-support" for misattribution: the abstract is about something else entirely, or it contradicts the claim.
+- "cannot-tell" is an honest and common answer; prefer it over guessing.
 - Keep explanations to 1-2 concrete sentences quoting the operative words.`;

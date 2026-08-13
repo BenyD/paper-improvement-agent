@@ -34,3 +34,19 @@ describe("stripSupTokens", () => {
     expect(stripSupTokens("as shown⟦^2,3⟧ here")).toBe("as shown[2,3] here");
   });
 });
+
+describe("isMathNoise (from claims)", () => {
+  it("exists to keep formula debris out of claim checks", async () => {
+    const { isMathNoise } = await import("./claims");
+    expect(
+      isMathNoise(
+        "Dot-product attention is identical except for the scaling factor of √ 1 dk = ∑ qi ki",
+      ),
+    ).toBe(true);
+    expect(
+      isMathNoise(
+        "Earlier work relied on recurrent encoder-decoder architectures for translation.",
+      ),
+    ).toBe(false);
+  });
+});

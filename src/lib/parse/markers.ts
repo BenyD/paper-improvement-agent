@@ -113,17 +113,13 @@ export function linkMarkers(
           : "author-year";
   }
 
-  // In a non-superscript paper, superscript tokens that link to nothing are
-  // footnote marks, not failed citations — drop them rather than crying orphan.
+  // Papers do not mix citation styles: in a non-superscript paper, EVERY
+  // superscript token is a footnote mark or math debris (a raised "1" in
+  // 1/√d maps to a real entry number and would fabricate a citation link) —
+  // drop them all, linked or not.
   if (style !== "superscript") {
-    const drop = new Set(
-      markers
-        .filter((m) => m.raw.startsWith("⟦^") && m.targets.length === 0)
-        .map((m) => m.id),
-    );
-    if (drop.size > 0) {
-      for (let i = markers.length - 1; i >= 0; i--)
-        if (drop.has(markers[i].id)) markers.splice(i, 1);
+    for (let i = markers.length - 1; i >= 0; i--) {
+      if (markers[i].raw.startsWith("⟦^")) markers.splice(i, 1);
     }
   }
 

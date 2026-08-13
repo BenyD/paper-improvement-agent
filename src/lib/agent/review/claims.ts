@@ -32,6 +32,9 @@ export function collectClaims(doc: PaperDocument): Map<string, CitedClaim[]> {
       sentenceAt(paragraph, marker.offset),
     ).trim();
     if (sentence.length < 20) continue;
+    // Formula-mangled text produces junk "sentences" (and even fake bracket
+    // markers like "√[1]") — not judgeable claims, skip them.
+    if (isMathNoise(sentence)) continue;
 
     for (const refId of marker.targets) {
       const list = byRef.get(refId) ?? [];
@@ -47,6 +50,20 @@ export function collectClaims(doc: PaperDocument): Map<string, CitedClaim[]> {
     }
   }
   return byRef;
+}
+
+const MATH_CHARS = /[√∑∏∫≈≤≥±×÷∈∀∃∇∂∞·∗‖|=+^_{}\\]/g;
+
+/** True when a sentence is dominated by formula debris rather than prose. */
+export function isMathNoise(sentence: string): boolean {
+  const mathHits = (sentence.match(MATH_CHARS) ?? []).length;
+  const words = sentence.split(/\s+/);
+  const shortTokens = words.filter((w) => w.length <= 2).length;
+  return (
+    mathHits >= 3 ||
+    mathHits / sentence.length > 0.02 ||
+    shortTokens / words.length > 0.5
+  );
 }
 
 const VerdictSchema = z.object({

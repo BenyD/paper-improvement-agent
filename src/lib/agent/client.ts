@@ -14,7 +14,9 @@ export function hasAnthropicKey(): boolean {
 }
 
 export function modelId(): string {
-  return process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
+  // `||` not `??`: an empty ANTHROPIC_MODEL= line in .env.local must not
+  // produce model: "".
+  return process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5";
 }
 
 let singleton: Anthropic | null = null;
