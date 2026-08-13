@@ -33,30 +33,46 @@ export async function structured<S extends z.ZodType>(opts: {
   schema: S;
   maxTokens?: number;
 }): Promise<z.infer<S>> {
-  const res = await client().messages.create({
-    model: modelId(),
-    max_tokens: opts.maxTokens ?? 3000,
-    // NOTE: `temperature` is deprecated on Claude 5 models (API 400s on it),
-    // so judge determinism cannot come from temperature pinning. Verdict
-    // stability is provided instead by forced tool schemas and the
-    // adversarial verification pass on high-severity verdicts.
-    system: opts.system,
-    messages: [{ role: "user", content: opts.user }],
-    tools: [
-      {
-        name: opts.toolName,
-        description: opts.description,
-        input_schema: zod.toJSONSchema(
-          opts.schema,
-        ) as Anthropic.Tool.InputSchema,
-      },
-    ],
-    tool_choice: { type: "tool", name: opts.toolName },
-  });
+  const attempt = async (feedback?: string): Promise<unknown> => {
+    const res = await client().messages.create({
+      model: modelId(),
+      max_tokens: opts.maxTokens ?? 3000,
+      // NOTE: `temperature` is deprecated on Claude 5 models (API 400s on
+      // it), so judge determinism cannot come from temperature pinning.
+      // Verdict stability is provided instead by forced tool schemas and the
+      // adversarial verification pass on high-severity verdicts.
+      system: opts.system,
+      messages: [
+        {
+          role: "user",
+          content: feedback ? `${opts.user}\n\n${feedback}` : opts.user,
+        },
+      ],
+      tools: [
+        {
+          name: opts.toolName,
+          description: opts.description,
+          input_schema: zod.toJSONSchema(
+            opts.schema,
+          ) as Anthropic.Tool.InputSchema,
+        },
+      ],
+      tool_choice: { type: "tool", name: opts.toolName },
+    });
+    const block = res.content.find((b) => b.type === "tool_use");
+    if (block?.type !== "tool_use") {
+      throw new Error("Model returned no structured output.");
+    }
+    return block.input;
+  };
 
-  const block = res.content.find((b) => b.type === "tool_use");
-  if (!block || block.type !== "tool_use") {
-    throw new Error("Model returned no structured output.");
-  }
-  return opts.schema.parse(block.input);
+  // One corrective retry: schema violations (e.g. an out-of-enum value) get
+  // the validation error fed back instead of failing the whole work unit.
+  const first = opts.schema.safeParse(await attempt());
+  if (first.success) return first.data;
+  return opts.schema.parse(
+    await attempt(
+      `IMPORTANT: your previous ${opts.toolName} call failed validation:\n${first.error.message}\nCall the tool again with corrected input that satisfies the schema exactly.`,
+    ),
+  );
 }
