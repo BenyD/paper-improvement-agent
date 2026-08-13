@@ -82,6 +82,13 @@ function isTableDebris(text: string): boolean {
   return dataish / tokens.length >= 0.6;
 }
 
+/** Parser layout enum → human words for the header chip. */
+const LAYOUT_LABEL: Record<string, string> = {
+  "single-column": "Single column",
+  "two-column": "Two columns",
+  "mixed-column": "Mixed layout",
+};
+
 /** Render ⟦^n⟧ superscript-marker tokens from P1 as real superscripts. */
 function renderParagraph(text: string) {
   const parts = text.split(/⟦\^([\d\s,;–-]+)⟧/);
@@ -133,7 +140,8 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
                   <BookOpen aria-hidden /> {doc.meta.pageCount} pages
                 </Badge>
                 <Badge variant="outline" className="text-muted-foreground">
-                  <Columns2 aria-hidden /> {doc.meta.layout}
+                  <Columns2 aria-hidden />{" "}
+                  {LAYOUT_LABEL[doc.meta.layout] ?? doc.meta.layout}
                 </Badge>
                 {doc.meta.year && (
                   <Badge variant="outline" className="text-muted-foreground">
