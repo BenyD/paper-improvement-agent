@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { exportBibtex, exportLatex } from "@/lib/export/latex";
+import { exportMarkdown } from "@/lib/export/markdown";
 import { loadPaper } from "@/lib/storage/papers";
 
 export const runtime = "nodejs";
@@ -34,8 +35,16 @@ export async function GET(
       },
     });
   }
+  if (format === "md") {
+    return new Response(exportMarkdown(doc), {
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${base}.md"`,
+      },
+    });
+  }
   return NextResponse.json(
-    { error: "format must be tex or bib." },
+    { error: "format must be tex, bib, or md." },
     { status: 400 },
   );
 }

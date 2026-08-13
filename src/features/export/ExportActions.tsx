@@ -1,6 +1,12 @@
 "use client";
 
-import { ChevronDown, Download, FileCode, FileText } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  FileCode,
+  FileText,
+  FileType,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,6 +63,20 @@ export function ExportActions({ doc }: { doc: PaperDocument }) {
             <span>BibTeX (.bib)</span>
             <span className="text-xs text-muted-foreground">
               References as citable data
+            </span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="items-start"
+          render={
+            <a href={`/api/papers/${doc.id}/export?format=md`} download />
+          }
+        >
+          <FileType className="mt-0.5" aria-hidden />
+          <div className="flex flex-col">
+            <span>Markdown (.md)</span>
+            <span className="text-xs text-muted-foreground">
+              Structured document with real tables
             </span>
           </div>
         </DropdownMenuItem>
