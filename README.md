@@ -24,7 +24,12 @@ npm run typecheck
 
 ## What it does
 
-<!-- Filled in as phases land: parse view, peer review, agentic editing, export -->
+1. **Upload & parse.** A research PDF becomes a structured document through a six-stage pipeline (extract → structure → locate references → segment → parse/resolve → link markers). Every reference is verified against OpenAlex/Semantic Scholar into CSL-JSON with a clickable source link; every in-text marker is bound to its entry. Unparseable entries, orphan markers, and never-cited references are surfaced, not dropped.
+2. **Peer review, on request.** Streams reviewer-style findings: relevant work the paper doesn't cite (year-filtered — nothing newer than the paper), and claim–citation checks judging each citing sentence against the cited work's real abstract. High-severity accusations must survive an adversarial re-check, and every verdict carries a verbatim abstract quote validated in code. Empty searches and skipped entries appear as process notes.
+3. **Edit by instruction.** "Make the introduction more concise" or "add supporting citations to section 2" runs a tool-use agent that proposes typed operations, shown as word-level diffs for approval. A deterministic validator (in the loop *and* at approval) rejects any edit that would lose a citation, cite a nonexistent entry, or add an unverified source — new references can only come from the agent's own verified search results.
+4. **Export.** Rebuilds the paper as compilable LaTeX (verified with tectonic) with `\cite` keys and a citeproc/CSL-rendered bibliography, plus a BibTeX file. Structure, approved edits, and all references survive the round trip.
+
+Tested end-to-end on arXiv 1706.03762 ("Attention Is All You Need"): 40/41 references verified with links, 102→71 markers after footnote/math de-noising, and the reviewer independently caught the paper's known byte-pair-encoding mis-citation ([3] Britz et al. instead of Sennrich et al.).
 
 ## System design
 
@@ -32,12 +37,12 @@ See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) — covers the citation-parsi
 
 ## Where AI tools were used
 
-<!-- Required by the brief. Keep honest and specific; update per phase. -->
+This project was built with Claude Code (Claude Fable 5) driving implementation, with all decisions reviewed and directed in conversation.
 
-This project was built with Claude Code (Claude Fable 5). The division of labor:
-
-- AI-written: (to fill in per phase)
-- Human-designed and verified: (to fill in per phase)
+- **AI-written**: essentially all code and documentation drafts, generated phase by phase under human direction.
+- **Human-directed and verified**: the phase plan and scope decisions (framework rejection, no-DB/no-auth, filesystem storage), tooling conventions (Biome/lefthook/commitlint mirrored from an existing project), API budget/model choices, and review of every proposal before it was committed.
+- **Verified against reality, not just tests**: every phase was exercised live on a real arXiv paper before being committed — that testing caught and fixed real bugs the unit tests alone would not have (the arXiv watermark hijacking title detection, footnote/math superscripts fabricating citation links, judge false positives on abstract-only evidence, API rate-limit handling).
+- The app's own outputs were spot-checked by hand: verified reference links were opened, the flagged BPE mis-citation was confirmed against the literature, and the exported LaTeX was compiled to PDF.
 
 ## Known limitations
 
@@ -52,5 +57,9 @@ This project was built with Claude Code (Claude Fable 5). The division of labor:
 
 ## With more time
 
-- Production path: Postgres + object storage for papers, authenticated multi-tenant workspaces, Redis-backed job queue for long-running reviews.
-- (to fill in)
+- Production path: Postgres + object storage for papers, authenticated multi-tenant workspaces, Redis-backed job queue for long-running reviews; schema versioning for stored documents (today old documents are handled defensively and healed by re-upload).
+- Claim checking against full texts (DeepSciVerify-style escalation) instead of abstracts only.
+- Vendored `.csl` style files (IEEE, ACM) beyond citation-js's bundled APA/Vancouver/Harvard, with user style pick in the export panel.
+- An end-to-end PDF fixture test (a small committed LaTeX-built paper) exercising P1→P6 in CI.
+- ML-based reference parsing (GROBID/anystyle-class) for wild citation styles, layered under the same verification pipeline.
+- Batch API for offline bulk review of many papers; the agent layer ports cleanly to eve or Cloudflare's Agents SDK if durable sessions were ever needed.

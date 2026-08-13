@@ -54,7 +54,13 @@ One canonical model: every citation — parsed from the PDF or fetched from an A
 
 ### Style and failure handling
 
-<!-- Styles supported, detection algorithm, what happens to unparseable entries end-to-end. -->
+Reference-list styles: bracket (`[n]`), number-dot (`n.`), hanging-indent author-year — detected by counting line shapes, with margin geometry as the fallback. In-text styles: numeric brackets (lists and ranges), superscript (via P1's raised-digit tokens), author-year (parenthetical with semicolon groups, narrative with `et al.`/`and`/`&`), detected by counting pattern hits; the dominant pattern wins and maps to a CSL template for rendering (numeric → Vancouver, author-year → APA; vendoring IEEE `.csl` is listed future work). Failures flow end-to-end as data: an unparseable entry stays visible with its raw text and an "unverified" badge carrying the real cause; markers that link to nothing are orphans in the UI; ambiguous author-year matches ("Smith 2020" matching two entries) are reported, never guessed.
+
+This architecture independently matches the three-rubric framework in the citation-verifier literature (HALLMARK): *structural* verification is our CSL parse, *resolvability* is API resolution with links, *semantic* is the claim checker.
+
+### Export (LaTeX round trip)
+
+`src/lib/export/latex.ts` rebuilds the paper: section hierarchy from levels, LaTeX-escaped text, numeric markers converted to `\cite{ref-n}` (lists and ranges expanded through the entry map — unknown markers are left as text, never fabricated into keys), and a `thebibliography` whose entries are each rendered through citeproc in the template matching the detected citation style, with the raw parsed text as the honest fallback. A companion BibTeX export carries the references as data. The exported `.tex` of the test paper compiles with tectonic, including post-edit state (the added reference appears as `\cite{ref-41}` + bibitem).
 
 ## 2. The agent: peer review + natural-language editing
 
