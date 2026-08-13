@@ -1,11 +1,17 @@
+"use client";
+
 import {
   BadgeCheck,
   BookMarked,
+  ChevronDown,
+  ChevronUp,
   CircleAlert,
   CircleHelp,
   ExternalLink,
 } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -62,7 +68,7 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
           />
         }
       >
-        <CircleAlert aria-hidden /> low confidence{" "}
+        <CircleAlert aria-hidden /> Low confidence{" "}
         <ExternalLink className="size-3" aria-hidden />
       </Badge>
     );
@@ -77,8 +83,15 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
   );
 }
 
+const INITIAL_ROWS = 25;
+
 export function CitationsTable({ doc }: { doc: PaperDocument }) {
   const { entries, markers, citationStyle, entryStyle } = doc.citations;
+  const [showAll, setShowAll] = useState(false);
+  const visible =
+    showAll || entries.length <= INITIAL_ROWS
+      ? entries
+      : entries.slice(0, INITIAL_ROWS);
   const verified = entries.filter(
     (e) => e.resolution.status === "verified",
   ).length;
@@ -88,13 +101,21 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
   return (
     <section aria-labelledby="citations-heading">
       <div className="mb-3 flex flex-col gap-2">
-        <h2
-          id="citations-heading"
-          className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          <BookMarked className="size-4" aria-hidden />
-          Citations
-        </h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id="citations-heading"
+            className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            <BookMarked className="size-4" aria-hidden />
+            Citations
+          </h2>
+          {entries.length - verified > 0 && (
+            <ReverifyButton
+              paperId={doc.id}
+              unverifiedCount={entries.length - verified}
+            />
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{entries.length} references</Badge>
           <Badge className="bg-(--success)/10 text-(--success)">
@@ -138,7 +159,7 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry, i) => (
+              {visible.map((entry, i) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {entry.marker ?? i + 1}
@@ -174,14 +195,24 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
-      {entries.length > 0 && entries.length - verified > 0 && (
-        <div className="mt-3">
-          <ReverifyButton
-            paperId={doc.id}
-            unverifiedCount={entries.length - verified}
-          />
+          {entries.length > INITIAL_ROWS && (
+            <Button
+              variant="ghost"
+              onClick={() => setShowAll((s) => !s)}
+              className="w-full rounded-none border-t border-border text-muted-foreground"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp aria-hidden /> Show fewer
+                </>
+              ) : (
+                <>
+                  <ChevronDown aria-hidden /> Show all {entries.length}{" "}
+                  references
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
     </section>

@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Gauge, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Finding } from "@/lib/agent/review/types";
@@ -16,6 +16,8 @@ const SEVERITY_BADGE: Record<Finding["severity"], string> = {
   low: "bg-muted text-muted-foreground",
 };
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 const CONFIDENCE_BADGE: Record<Finding["confidence"], string> = {
   high: "bg-(--success)/10 text-(--success)",
   medium: "bg-(--info)/10 text-(--info)",
@@ -29,10 +31,10 @@ export function FindingCard({ finding }: { finding: Finding }) {
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">{finding.summary}</span>
           <Badge className={SEVERITY_BADGE[finding.severity]}>
-            {finding.severity} severity
+            <TriangleAlert aria-hidden /> {cap(finding.severity)} severity
           </Badge>
           <Badge className={CONFIDENCE_BADGE[finding.confidence]}>
-            {finding.confidence} confidence
+            <Gauge aria-hidden /> {cap(finding.confidence)} confidence
           </Badge>
         </div>
         <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
