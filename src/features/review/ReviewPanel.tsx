@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, Loader2, ScanSearch } from "lucide-react";
+import { ChevronRight, CircleCheck, Loader2, ScanSearch } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,10 @@
-import { AlignLeft, ArrowLeft, FileText, ListTree } from "lucide-react";
+import {
+  AlignLeft,
+  ArrowLeft,
+  ChevronRight,
+  FileText,
+  ListTree,
+} from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -72,13 +78,19 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
             <li key={section.id}>
               <details className="group rounded-lg border border-border">
                 <summary
-                  className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="cursor-pointer select-none list-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
                   style={{
                     paddingLeft: `${1 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
                   }}
                 >
                   <span className="flex items-center justify-between gap-3">
-                    <span>{section.heading}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <ChevronRight
+                        className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                        aria-hidden
+                      />
+                      <span className="truncate">{section.heading}</span>
+                    </span>
                     <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
                       <AlignLeft className="size-3.5" aria-hidden />
                       {section.paragraphs.length}
@@ -121,8 +133,12 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
             No reference list located.
           </p>
         ) : (
-          <details className="rounded-lg border border-border">
-            <summary className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <details className="group rounded-lg border border-border">
+            <summary className="flex cursor-pointer select-none items-center gap-1.5 list-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                aria-hidden
+              />
               {doc.references.rawLines.length} raw lines
               <span className="ml-2 text-xs font-normal text-muted-foreground">
                 (as extracted, before segmentation)
