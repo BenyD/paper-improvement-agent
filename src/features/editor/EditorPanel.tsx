@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Check, MessageSquareText, X } from "lucide-react";
+import { ArrowUp, Check, Maximize2, MessageSquareText, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -12,6 +12,12 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import type { EditProposal } from "@/lib/doc/ops";
 import type { PaperDocument } from "@/lib/doc/types";
@@ -31,13 +37,10 @@ type ChatItem =
   | { kind: "agent-proposal"; proposal: EditProposal }
   | { kind: "thinking"; status: string };
 
-const STATUS_BADGE: Record<
-  EditProposal["status"],
-  "default" | "secondary" | "destructive"
-> = {
-  approved: "default",
-  proposed: "secondary",
-  rejected: "destructive",
+const STATUS_BADGE: Record<EditProposal["status"], string> = {
+  proposed: "bg-(--info)/10 text-(--info)",
+  approved: "bg-(--success)/10 text-(--success)",
+  rejected: "bg-destructive/10 text-destructive",
 };
 
 function threadFromHistory(proposals: EditProposal[]): ChatItem[] {
@@ -63,6 +66,7 @@ export function EditorPanel({
   );
   const [command, setCommand] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reviewing, setReviewing] = useState<EditProposal | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on every thread change
@@ -268,9 +272,17 @@ export function EditorPanel({
                         {item.proposal.summary}
                       </p>
                       <Badge
-                        variant={STATUS_BADGE[item.proposal.status]}
-                        className="shrink-0 capitalize"
+                        className={cn(
+                          "shrink-0 capitalize",
+                          STATUS_BADGE[item.proposal.status],
+                        )}
                       >
+                        {item.proposal.status === "approved" && (
+                          <Check aria-hidden />
+                        )}
+                        {item.proposal.status === "rejected" && (
+                          <X aria-hidden />
+                        )}
                         {item.proposal.status}
                       </Badge>
                     </div>
@@ -287,10 +299,10 @@ export function EditorPanel({
                       <OpView key={j} op={op} doc={doc} />
                     ))}
                   </CardContent>
-                  {item.proposal.status === "proposed" && (
-                    <>
-                      <Separator />
-                      <CardFooter className="gap-2 px-4 py-3">
+                  <Separator />
+                  <CardFooter className="gap-2 px-4 py-3">
+                    {item.proposal.status === "proposed" && (
+                      <>
                         <Button
                           size="sm"
                           onClick={() => void decide(item.proposal, "approve")}
@@ -307,9 +319,20 @@ export function EditorPanel({
                         >
                           <X aria-hidden /> Reject
                         </Button>
-                      </CardFooter>
-                    </>
-                  )}
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setReviewing(item.proposal)}
+                      className="ml-auto text-muted-foreground"
+                    >
+                      <Maximize2 aria-hidden />
+                      {item.proposal.status === "proposed"
+                        ? "Review changes"
+                        : "View changes"}
+                    </Button>
+                  </CardFooter>
                 </Card>
               )}
             </li>
@@ -317,6 +340,73 @@ export function EditorPanel({
         </ul>
         <div ref={bottomRef} />
       </div>
+
+      <Dialog
+        open={reviewing !== null}
+        onOpenChange={(open) => !open && setReviewing(null)}
+      >
+        <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl">
+          {reviewing && (
+            <>
+              <DialogHeader className="border-b border-border px-5 py-4">
+                <DialogTitle className="pr-6 text-base leading-snug">
+                  Review proposed changes
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  {reviewing.summary}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {reviewing.ops.length} operation
+                  {reviewing.ops.length === 1 ? "" : "s"}, validated (no
+                  citations lost)
+                </p>
+              </DialogHeader>
+              <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
+                {reviewing.ops.map((op, j) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static proposal render
+                  <OpView key={j} op={op} doc={doc} />
+                ))}
+              </div>
+              <div className="flex items-center gap-2 border-t border-border px-5 py-3">
+                {reviewing.status === "proposed" ? (
+                  <>
+                    <Button
+                      onClick={() =>
+                        void decide(reviewing, "approve").then(() =>
+                          setReviewing(null),
+                        )
+                      }
+                      disabled={busy}
+                      className="bg-(--success)/15 text-(--success) hover:bg-(--success)/25"
+                    >
+                      <Check aria-hidden /> Approve
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        void decide(reviewing, "reject").then(() =>
+                          setReviewing(null),
+                        )
+                      }
+                      disabled={busy}
+                      className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+                    >
+                      <X aria-hidden /> Reject
+                    </Button>
+                  </>
+                ) : (
+                  <Badge
+                    className={cn("capitalize", STATUS_BADGE[reviewing.status])}
+                  >
+                    {reviewing.status === "approved" && <Check aria-hidden />}
+                    {reviewing.status === "rejected" && <X aria-hidden />}
+                    {reviewing.status}
+                  </Badge>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="shrink-0 border-t border-border p-3">
         <form
