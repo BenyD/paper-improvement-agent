@@ -9,6 +9,7 @@ const line = (text: string, x = 72): Line => ({
   page: 10,
   fontSize: 9,
   column: 0,
+  bold: false,
   spans: [],
 });
 

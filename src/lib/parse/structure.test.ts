@@ -9,6 +9,7 @@ const line = (text: string, overrides: Partial<Line> = {}): Line => ({
   page: 1,
   fontSize: 10,
   column: 0,
+  bold: false,
   spans: [],
   ...overrides,
 });
@@ -19,7 +20,7 @@ describe("classifyHeading", () => {
   it("detects numbered top-level headings in a larger font", () => {
     expect(
       classifyHeading(line("3 Methodology", { fontSize: 12 }), body),
-    ).toEqual({
+    ).toMatchObject({
       level: 1,
       text: "3 Methodology",
     });
@@ -63,6 +64,65 @@ describe("classifyHeading", () => {
     expect(
       classifyHeading(line("This looks big.", { fontSize: 12.5 }), body),
     ).toBeNull();
+  });
+});
+
+describe("classifyHeading — bold-aware (font-name detection)", () => {
+  const body = 10;
+
+  it("accepts bold body-size unnumbered headings", () => {
+    expect(
+      classifyHeading(line("Ablation Studies", { bold: true }), body),
+    ).toMatchObject({ kind: "styled" });
+  });
+
+  it("accepts bold numbered headings at body size", () => {
+    expect(
+      classifyHeading(line("4 Experiments", { bold: true }), body),
+    ).toMatchObject({ level: 1, kind: "numbered" });
+  });
+
+  it("rejects figure/table captions even when bold", () => {
+    expect(
+      classifyHeading(
+        line("Figure 2. Residual learning", { bold: true }),
+        body,
+      ),
+    ).toBeNull();
+    expect(
+      classifyHeading(line("Table 1", { bold: true, fontSize: 12 }), body),
+    ).toBeNull();
+  });
+});
+
+describe("detectStructure — front-matter suppression", () => {
+  it("keeps bold author/affiliation lines out of the section tree", () => {
+    const lines: Line[] = [
+      line("Deep Residual Learning", { fontSize: 18, y: 760 }),
+      line("Kaiming He Xiangyu Zhang", { bold: true, y: 740 }),
+      line("Microsoft Research", { bold: true, y: 726 }),
+      line("Abstract", { fontSize: 12, y: 700 }),
+      line("Deeper networks are hard to train and we ease that.", { y: 686 }),
+      line("1. Introduction", { fontSize: 12, y: 650 }),
+      line("Depth matters for visual recognition tasks today.", { y: 636 }),
+      line("Ablation Studies", { bold: true, y: 600, page: 2 }),
+      line("We ablate the residual connections carefully here.", {
+        y: 586,
+        page: 2,
+      }),
+    ];
+    const result = detectStructure({
+      lines,
+      pages: [{ width: 612, height: 792, columns: 1 }],
+      docMeta: { title: null, year: null },
+      failures: [],
+    });
+    const headings = result.sections.map((x) => x.heading);
+    expect(headings).not.toContain("Kaiming He Xiangyu Zhang");
+    expect(headings).not.toContain("Microsoft Research");
+    expect(headings).toContain("1. Introduction");
+    // Bold headings beyond page 1 still count.
+    expect(headings).toContain("Ablation Studies");
   });
 });
 

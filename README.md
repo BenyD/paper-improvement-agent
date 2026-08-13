@@ -51,7 +51,7 @@ This project was built with Claude Code (Claude Fable 5) driving implementation,
 - Mathematical formulas extract as garbled glyph runs; they are ignored by citation logic.
 - Two-column layouts are split at the column gutter per line (verified on BERT and ResNet); unusual mixed layouts (sidebars, three columns) can still locally misorder text.
 - Semantic Scholar's unauthenticated pool rate-limits aggressively (HTTP 429). Batch requests mostly avoid this; when it still hits, affected entries stay honestly "unverified" with the real cause, and an optional `SEMANTIC_SCHOLAR_API_KEY` removes the rest.
-- Bold text is not exposed by pdfjs text items, so unnumbered body-size subsection headings can be missed (numbered ones are caught by pattern).
+- Heading detection now reads bold weights from font PostScript names (a pdf-inspector-inspired technique), so bold body-size headings are caught; fonts with nondescript names can still hide their weight.
 - Claim checking judges against the cited work's *abstract* (full texts are not fetched). Abstracts omit details, so the checker can over-flag broad or detail-heavy claims even with prompting toward "cannot-tell"; verdicts are surfaced with confidence levels and severity so the author stays the judge.
 - Missing-work review correctly refuses to suggest papers published after the reviewed paper — reviewing an older classic therefore legitimately yields few or no missing-work findings.
 

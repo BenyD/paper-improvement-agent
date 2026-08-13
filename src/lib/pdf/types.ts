@@ -8,6 +8,8 @@ export interface TextSpan {
   width: number;
   fontSize: number;
   fontName: string;
+  /** From the font's PostScript name (Bold/Black/Heavy/Semibold/Medi). */
+  bold: boolean;
   page: number;
 }
 
@@ -21,6 +23,8 @@ export interface Line {
   fontSize: number;
   /** 0 for single-column pages / left column, 1 for right column. */
   column: number;
+  /** True when the dominant share of the line's text is set in a bold face. */
+  bold: boolean;
   /**
    * The raw spans composing the line, in reading order. Kept so later stages
    * can inspect intra-line typography (superscript citation markers, italics).

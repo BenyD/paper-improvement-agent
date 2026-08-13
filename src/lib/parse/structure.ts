@@ -36,11 +36,24 @@ export function detectStructure(extract: PdfExtract): DocumentStructure {
     });
   }
 
-  let headingIndices: { index: number; level: number; text: string }[] = [];
+  let headingIndices: {
+    index: number;
+    level: number;
+    text: string;
+    kind: HeadingKind;
+  }[] = [];
   for (let i = 0; i < lines.length; i++) {
     const h = classifyHeading(lines[i], bodySize);
     if (h) headingIndices.push({ index: i, ...h });
   }
+
+  // Front-matter suppression: author names and affiliations in the title
+  // block are often bold/larger, but they precede the first real anchor
+  // (a numbered or known heading like Abstract/Introduction). Merely-styled
+  // candidates on page 1 before that anchor are front matter, not structure.
+  headingIndices = headingIndices.filter(
+    (h) => !(h.kind === "styled" && lines[h.index].page === 1),
+  );
 
   // The title lines classify as headings too (large font) — drop them.
   headingIndices = headingIndices.filter(
@@ -158,38 +171,56 @@ const KNOWN_HEADINGS =
 
 const NUMBERED = /^(\d+(\.\d+)*|[IVXLC]+)\.?\s+(.{2,80})$/;
 
+export type HeadingKind = "numbered" | "known" | "styled";
+
+const CAPTION = /^(figure|fig\.|table|algorithm|listing)\b/i;
+
 export function classifyHeading(
   line: Line,
   bodySize: number,
-): { level: number; text: string } | null {
+): { level: number; text: string; kind: HeadingKind } | null {
   const text = line.text.trim();
   if (text.length === 0 || text.length > 90) return null;
+  if (CAPTION.test(text)) return null; // captions are furniture, not structure
   const larger = line.fontSize >= bodySize * 1.05;
 
   const numbered = text.match(NUMBERED);
   if (numbered) {
     const num = numbered[1];
     const level = num.includes(".") ? num.split(".").length : 1;
-    // Top-level numbers need the larger font (body text often starts with a
-    // number); dotted numbers followed by a title-case word are heading-shaped
-    // on their own — many templates set subsections at body size (bold only).
+    // Top-level numbers need a larger or bold font (body text often starts
+    // with a number); dotted numbers followed by a title-case word are
+    // heading-shaped on their own — many templates set subsections at body
+    // size (bold only, which the font-name check now surfaces).
     const dottedTitle =
       num.includes(".") && /^[A-Z]/.test(numbered[3]) && text.length <= 70;
-    if (larger || dottedTitle) return { level, text };
+    // ICLR-style templates set headings in caps at body size ("1 INTRODUCTION").
+    // Arabic numbers only: a lone "C" or "V" in figure text parses as a Roman
+    // numeral and would turn diagram labels into headings.
+    const allCaps =
+      /^\d/.test(num) &&
+      /[A-Z]{3}/.test(numbered[3]) &&
+      numbered[3] === numbered[3].toUpperCase();
+    if (larger || dottedTitle || allCaps || line.bold)
+      return { level, text, kind: "numbered" };
   }
 
-  if (KNOWN_HEADINGS.test(text) && (larger || text === text.toUpperCase())) {
-    return { level: 1, text };
-  }
-
-  // Short, clearly-larger standalone line (e.g. unnumbered bold headings).
   if (
-    larger &&
-    line.fontSize >= bodySize * 1.15 &&
-    text.length <= 60 &&
-    !/[.;:]$/.test(text)
+    KNOWN_HEADINGS.test(text) &&
+    (larger || line.bold || text === text.toUpperCase())
   ) {
-    return { level: 1, text };
+    return { level: 1, text, kind: "known" };
+  }
+
+  // Short standalone line that is clearly larger, or bold at body size —
+  // unnumbered headings in either convention.
+  if (
+    text.length <= 60 &&
+    !/[.;:,]$/.test(text) &&
+    ((larger && line.fontSize >= bodySize * 1.15) ||
+      (line.bold && line.fontSize >= bodySize * 0.95))
+  ) {
+    return { level: 1, text, kind: "styled" };
   }
 
   return null;

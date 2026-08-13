@@ -59,6 +59,27 @@ export async function extractPdf(bytes: Uint8Array): Promise<PdfExtract> {
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
 
+      // Bold via the font's PostScript name (the same font-name pattern
+      // trick Firecrawl's pdf-inspector uses): pdfjs loads fonts into
+      // commonObjs during getTextContent, where the real name lives.
+      const boldByFont = new Map<string, boolean>();
+      const isBoldFont = (fontName: string): boolean => {
+        let bold = boldByFont.get(fontName);
+        if (bold === undefined) {
+          bold = false;
+          try {
+            const font = page.commonObjs.get(fontName) as { name?: string };
+            bold = /bold|black|heavy|semibold|demi|medi/i.test(
+              font?.name ?? "",
+            );
+          } catch {
+            // font not resolved; treat as regular weight
+          }
+          boldByFont.set(fontName, bold);
+        }
+        return bold;
+      };
+
       const spans: TextSpan[] = [];
       for (const item of content.items) {
         if (!("str" in item) || item.str.trim() === "") continue;
@@ -73,6 +94,7 @@ export async function extractPdf(bytes: Uint8Array): Promise<PdfExtract> {
           width: item.width,
           fontSize: Math.hypot(a, b),
           fontName: item.fontName,
+          bold: isBoldFont(item.fontName),
           page: pageNum,
         });
       }
@@ -273,6 +295,11 @@ function makeLine(spans: TextSpan[], page: number): Line | null {
   const text = joinSpans(sorted, fontSize);
   if (text.trim() === "") return null;
   const anchor = sorted.find((s) => s.fontSize >= fontSize * 0.95) ?? sorted[0];
+  const total = sorted.reduce((n, sp) => n + sp.text.length, 0);
+  const boldLen = sorted.reduce(
+    (n, sp) => n + (sp.bold ? sp.text.length : 0),
+    0,
+  );
   return {
     text,
     x: sorted[0].x,
@@ -280,6 +307,7 @@ function makeLine(spans: TextSpan[], page: number): Line | null {
     page,
     fontSize,
     column: 0,
+    bold: total > 0 && boldLen / total >= 0.6,
     spans: sorted,
   };
 }
