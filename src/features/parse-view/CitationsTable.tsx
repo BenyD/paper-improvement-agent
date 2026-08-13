@@ -1,4 +1,10 @@
-import { BookMarked, ExternalLink } from "lucide-react";
+import {
+  BadgeCheck,
+  BookMarked,
+  CircleAlert,
+  CircleHelp,
+  ExternalLink,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -38,7 +44,8 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
           />
         }
       >
-        ✓ {label} <ExternalLink className="size-3" aria-hidden />
+        <BadgeCheck aria-hidden /> {label}{" "}
+        <ExternalLink className="size-3" aria-hidden />
       </Badge>
     );
   }
@@ -55,13 +62,14 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
           />
         }
       >
-        ≈ low confidence
+        <CircleAlert aria-hidden /> low confidence{" "}
+        <ExternalLink className="size-3" aria-hidden />
       </Badge>
     );
   }
   return (
     <Badge variant="secondary" title={resolution.note}>
-      unverified
+      <CircleHelp aria-hidden /> unverified
     </Badge>
   );
 }
