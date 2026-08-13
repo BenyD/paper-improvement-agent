@@ -35,22 +35,50 @@ export async function POST(
   }
   const { command } = parsed.data;
 
-  try {
-    const outcome = await runEditAgent(doc, command);
-    if (outcome.kind === "proposal") {
-      await saveProposal(id, outcome.proposal);
-      return NextResponse.json({ proposal: outcome.proposal });
-    }
-    return NextResponse.json(
-      { message: outcome.reason },
-      { status: outcome.kind === "failed" ? 422 : 200 },
-    );
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error: `Edit agent failed: ${err instanceof Error ? err.message : String(err)}`,
-      },
-      { status: 500 },
-    );
-  }
+  // SSE: progress events narrate the agent's real actions (reading,
+  // searching with the actual query, validating), then one done/error event.
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const send = (ev: unknown) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
+        } catch {}
+      };
+      const close = () => {
+        try {
+          controller.close();
+        } catch {}
+      };
+      runEditAgent(doc, command, (message) =>
+        send({ type: "progress", message }),
+      )
+        .then(async (outcome) => {
+          if (outcome.kind === "proposal") {
+            await saveProposal(id, outcome.proposal);
+            send({ type: "done", proposal: outcome.proposal });
+          } else {
+            send({
+              type: "done",
+              message: outcome.reason,
+              failed: outcome.kind === "failed",
+            });
+          }
+          close();
+        })
+        .catch((err) => {
+          send({
+            type: "error",
+            message: `Edit agent failed: ${err instanceof Error ? err.message : String(err)}`,
+          });
+          close();
+        });
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+    },
+  });
 }

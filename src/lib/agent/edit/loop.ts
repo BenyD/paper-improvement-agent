@@ -6,6 +6,7 @@ import type { CslItem } from "@/lib/csl/types";
 import { validateOps } from "@/lib/doc/invariants";
 import type { EditOp, EditProposal } from "@/lib/doc/ops";
 import type { PaperDocument } from "@/lib/doc/types";
+import { onSourceActivity } from "@/lib/sources/cache";
 import { titleSimilarity } from "@/lib/sources/resolve";
 import { modelId } from "../client";
 import { searchCandidates } from "../review/missing";
@@ -75,10 +76,16 @@ export type EditOutcome =
 export async function runEditAgent(
   doc: PaperDocument,
   command: string,
+  onProgress?: (message: string) => void,
 ): Promise<EditOutcome> {
   const anthropic = new Anthropic();
   const candidates = new Map<string, CslItem>();
   let candidateSeq = 0;
+  const progress = (message: string) => onProgress?.(message);
+  // Low-level API narration (throttle waits, 429 backoff) rides the same
+  // channel while this run is active.
+  const unsubscribe = onSourceActivity(progress);
+  progress("Reading the paper…");
 
   const tools: Anthropic.Tool[] = [
     {
@@ -116,183 +123,189 @@ export async function runEditAgent(
     { role: "user", content: command },
   ];
 
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
-    const res = await anthropic.messages.create({
-      model: modelId(),
-      max_tokens: 4000,
-      system,
-      messages,
-      tools,
-    });
+  try {
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const res = await anthropic.messages.create({
+        model: modelId(),
+        max_tokens: 4000,
+        system,
+        messages,
+        tools,
+      });
 
-    // Dev-visible proof that the document-context cache block is working:
-    // turn 1 should show cache_creation, later turns cache_read.
-    console.log(
-      `[edit-agent] turn ${turn + 1}: input=${res.usage.input_tokens} cache_write=${res.usage.cache_creation_input_tokens ?? 0} cache_read=${res.usage.cache_read_input_tokens ?? 0}`,
-    );
+      // Dev-visible proof that the document-context cache block is working:
+      // turn 1 should show cache_creation, later turns cache_read.
+      console.log(
+        `[edit-agent] turn ${turn + 1}: input=${res.usage.input_tokens} cache_write=${res.usage.cache_creation_input_tokens ?? 0} cache_read=${res.usage.cache_read_input_tokens ?? 0}`,
+      );
 
-    const toolUses = res.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-    );
-    if (toolUses.length === 0) {
-      const text = res.content.find((b) => b.type === "text")?.text ?? "";
-      return {
-        kind: "no-edit",
-        reason: text || "The agent ended without proposing an edit.",
-      };
-    }
-
-    messages.push({ role: "assistant", content: res.content });
-    const results: Anthropic.ToolResultBlockParam[] = [];
-
-    for (const use of toolUses) {
-      if (use.name === "search_papers") {
-        const input = SearchInput.safeParse(use.input);
-        if (!input.success) {
-          results.push(toolError(use.id, "Invalid search input."));
-          continue;
-        }
-        const { items, notes } = await searchCandidates(
-          input.data.query,
-          doc.meta.year,
-        );
-        const usable = items.filter(
-          (c) =>
-            c.title &&
-            c.URL &&
-            !doc.citations.entries.some(
-              (e) =>
-                e.csl.title &&
-                titleSimilarity(e.csl.title, c.title as string) >= 0.75,
-            ),
-        );
-        const listed = usable.slice(0, 6).map((c) => {
-          const id = `c${++candidateSeq}`;
-          candidates.set(id, c);
-          const nextNumber =
-            doc.citations.entries.length +
-            [...candidates.keys()].indexOf(id) +
-            1;
-          return {
-            candidateId: id,
-            willBecomeMarker:
-              doc.citations.entryStyle === "bracket"
-                ? `[${nextNumber}]`
-                : undefined,
-            title: c.title,
-            year: c.issued?.["date-parts"]?.[0]?.[0],
-            authors: (c.author ?? [])
-              .slice(0, 3)
-              .map((a) => a.family ?? a.literal)
-              .join(", "),
-            url: c.URL,
-            abstract: (c.abstract ?? "").slice(0, 400),
-          };
-        });
-        const rateLimited = notes.some((n) => n.includes("rate-limited"));
-        results.push({
-          type: "tool_result",
-          tool_use_id: use.id,
-          content: JSON.stringify(
-            {
-              candidates: listed,
-              notes,
-              ...(rateLimited && listed.length === 0
-                ? {
-                    advice:
-                      "The academic search APIs are rate-limited right now. Do NOT keep retrying: either proceed without new references, or call finish_without_edit explaining that sources cannot be verified at the moment.",
-                  }
-                : {}),
-            },
-            null,
-            1,
-          ),
-        });
-      } else if (use.name === "finish_without_edit") {
-        const input = FinishInput.safeParse(use.input);
+      const toolUses = res.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+      );
+      if (toolUses.length === 0) {
+        const text = res.content.find((b) => b.type === "text")?.text ?? "";
         return {
           kind: "no-edit",
-          reason: input.success ? input.data.reason : "No reason given.",
-        };
-      } else if (use.name === "propose_edit") {
-        const input = ProposeInput.safeParse(use.input);
-        if (!input.success) {
-          results.push(
-            toolError(
-              use.id,
-              `Invalid proposal shape: ${input.error.issues.map((i) => i.message).join("; ")}`,
-            ),
-          );
-          continue;
-        }
-        // Translate candidateIds → real CSL from THIS loop's search results.
-        const ops: EditOp[] = [];
-        let badCandidate: string | null = null;
-        for (const op of input.data.ops) {
-          if (op.type === "add_reference") {
-            const csl = candidates.get(op.candidateId);
-            if (!csl) {
-              badCandidate = op.candidateId;
-              break;
-            }
-            ops.push({
-              type: "add_reference",
-              csl,
-              resolution: {
-                status: "verified",
-                source: csl.custom?.openalex ? "openalex" : "semanticscholar",
-                url: csl.URL,
-                score: 1,
-              },
-            });
-          } else {
-            ops.push(op);
-          }
-        }
-        if (badCandidate) {
-          results.push(
-            toolError(
-              use.id,
-              `Unknown candidateId "${badCandidate}" — only ids returned by search_papers in this session are valid.`,
-            ),
-          );
-          continue;
-        }
-
-        const verdict = validateOps(doc, ops);
-        if (!verdict.ok) {
-          results.push(
-            toolError(
-              use.id,
-              `Proposal rejected by the citation-invariant validator:\n- ${verdict.violations.join("\n- ")}\nFix the operations and propose again.`,
-            ),
-          );
-          continue;
-        }
-
-        return {
-          kind: "proposal",
-          proposal: {
-            id: randomUUID(),
-            paperId: doc.id,
-            command,
-            summary: input.data.summary,
-            ops,
-            createdAt: new Date().toISOString(),
-            status: "proposed",
-            model: modelId(),
-          },
+          reason: text || "The agent ended without proposing an edit.",
         };
       }
+
+      messages.push({ role: "assistant", content: res.content });
+      const results: Anthropic.ToolResultBlockParam[] = [];
+
+      for (const use of toolUses) {
+        if (use.name === "search_papers") {
+          const input = SearchInput.safeParse(use.input);
+          if (!input.success) {
+            results.push(toolError(use.id, "Invalid search input."));
+            continue;
+          }
+          progress(`Searching the literature: "${input.data.query}"…`);
+          const { items, notes } = await searchCandidates(
+            input.data.query,
+            doc.meta.year,
+          );
+          const usable = items.filter(
+            (c) =>
+              c.title &&
+              c.URL &&
+              !doc.citations.entries.some(
+                (e) =>
+                  e.csl.title &&
+                  titleSimilarity(e.csl.title, c.title as string) >= 0.75,
+              ),
+          );
+          const listed = usable.slice(0, 6).map((c) => {
+            const id = `c${++candidateSeq}`;
+            candidates.set(id, c);
+            const nextNumber =
+              doc.citations.entries.length +
+              [...candidates.keys()].indexOf(id) +
+              1;
+            return {
+              candidateId: id,
+              willBecomeMarker:
+                doc.citations.entryStyle === "bracket"
+                  ? `[${nextNumber}]`
+                  : undefined,
+              title: c.title,
+              year: c.issued?.["date-parts"]?.[0]?.[0],
+              authors: (c.author ?? [])
+                .slice(0, 3)
+                .map((a) => a.family ?? a.literal)
+                .join(", "),
+              url: c.URL,
+              abstract: (c.abstract ?? "").slice(0, 400),
+            };
+          });
+          const rateLimited = notes.some((n) => n.includes("rate-limited"));
+          results.push({
+            type: "tool_result",
+            tool_use_id: use.id,
+            content: JSON.stringify(
+              {
+                candidates: listed,
+                notes,
+                ...(rateLimited && listed.length === 0
+                  ? {
+                      advice:
+                        "The academic search APIs are rate-limited right now. Do NOT keep retrying: either proceed without new references, or call finish_without_edit explaining that sources cannot be verified at the moment.",
+                    }
+                  : {}),
+              },
+              null,
+              1,
+            ),
+          });
+        } else if (use.name === "finish_without_edit") {
+          const input = FinishInput.safeParse(use.input);
+          return {
+            kind: "no-edit",
+            reason: input.success ? input.data.reason : "No reason given.",
+          };
+        } else if (use.name === "propose_edit") {
+          const input = ProposeInput.safeParse(use.input);
+          if (!input.success) {
+            results.push(
+              toolError(
+                use.id,
+                `Invalid proposal shape: ${input.error.issues.map((i) => i.message).join("; ")}`,
+              ),
+            );
+            continue;
+          }
+          // Translate candidateIds → real CSL from THIS loop's search results.
+          const ops: EditOp[] = [];
+          let badCandidate: string | null = null;
+          for (const op of input.data.ops) {
+            if (op.type === "add_reference") {
+              const csl = candidates.get(op.candidateId);
+              if (!csl) {
+                badCandidate = op.candidateId;
+                break;
+              }
+              ops.push({
+                type: "add_reference",
+                csl,
+                resolution: {
+                  status: "verified",
+                  source: csl.custom?.openalex ? "openalex" : "semanticscholar",
+                  url: csl.URL,
+                  score: 1,
+                },
+              });
+            } else {
+              ops.push(op);
+            }
+          }
+          if (badCandidate) {
+            results.push(
+              toolError(
+                use.id,
+                `Unknown candidateId "${badCandidate}" — only ids returned by search_papers in this session are valid.`,
+              ),
+            );
+            continue;
+          }
+
+          progress("Validating the proposed edit against the citation rules…");
+          const verdict = validateOps(doc, ops);
+          if (!verdict.ok) {
+            results.push(
+              toolError(
+                use.id,
+                `Proposal rejected by the citation-invariant validator:\n- ${verdict.violations.join("\n- ")}\nFix the operations and propose again.`,
+              ),
+            );
+            continue;
+          }
+
+          return {
+            kind: "proposal",
+            proposal: {
+              id: randomUUID(),
+              paperId: doc.id,
+              command,
+              summary: input.data.summary,
+              ops,
+              createdAt: new Date().toISOString(),
+              status: "proposed",
+              model: modelId(),
+            },
+          };
+        }
+      }
+
+      messages.push({ role: "user", content: results });
     }
 
-    messages.push({ role: "user", content: results });
+    return {
+      kind: "failed",
+      reason: `The agent did not produce a valid proposal within ${MAX_TURNS} turns.`,
+    };
+  } finally {
+    unsubscribe();
   }
-
-  return {
-    kind: "failed",
-    reason: `The agent did not produce a valid proposal within ${MAX_TURNS} turns.`,
-  };
 }
 
 function toolError(

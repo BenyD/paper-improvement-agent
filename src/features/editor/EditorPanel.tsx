@@ -29,7 +29,7 @@ type ChatItem =
   | { kind: "user"; text: string }
   | { kind: "agent-text"; text: string }
   | { kind: "agent-proposal"; proposal: EditProposal }
-  | { kind: "thinking" };
+  | { kind: "thinking"; status: string };
 
 const STATUS_BADGE: Record<
   EditProposal["status"],
@@ -73,7 +73,21 @@ export function EditorPanel({
     if (text.length < 4 || busy) return;
     setBusy(true);
     setCommand("");
-    setThread((t) => [...t, { kind: "user", text }, { kind: "thinking" }]);
+    setThread((t) => [
+      ...t,
+      { kind: "user", text },
+      { kind: "thinking", status: "Reading the paper…" },
+    ]);
+
+    const setStatus = (status: string) =>
+      setThread((t) =>
+        t.map((i) => (i.kind === "thinking" ? { ...i, status } : i)),
+      );
+    const finish = (item: ChatItem | null) =>
+      setThread((t) => {
+        const withoutThinking = t.filter((i) => i.kind !== "thinking");
+        return item ? [...withoutThinking, item] : withoutThinking;
+      });
 
     try {
       const res = await fetch(`/api/papers/${doc.id}/edits`, {
@@ -81,30 +95,59 @@ export function EditorPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: text }),
       });
-      const json = (await res.json()) as {
-        proposal?: EditProposal;
-        message?: string;
-        error?: string;
-      };
-      setThread((t) => {
-        const withoutThinking = t.filter((i) => i.kind !== "thinking");
-        if (json.proposal)
-          return [
-            ...withoutThinking,
-            { kind: "agent-proposal", proposal: json.proposal },
-          ];
-        return [
-          ...withoutThinking,
-          {
-            kind: "agent-text",
-            text:
-              json.message ?? json.error ?? `Request failed (${res.status}).`,
-          },
-        ];
-      });
-      if (json.error) toast.error("Edit failed", { description: json.error });
+      if (!res.ok || !res.body) {
+        const json = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        finish(null);
+        toast.error("Edit failed", {
+          description: json?.error ?? `Request failed (${res.status}).`,
+        });
+        return;
+      }
+
+      // Parse the SSE stream: progress events update the live status line,
+      // done/error events end the turn.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let ended = false;
+      while (!ended) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const data = frame.replace(/^data: /, "").trim();
+          if (!data) continue;
+          const ev = JSON.parse(data) as {
+            type: "progress" | "done" | "error";
+            message?: string;
+            proposal?: EditProposal;
+            failed?: boolean;
+          };
+          if (ev.type === "progress" && ev.message) setStatus(ev.message);
+          if (ev.type === "done") {
+            ended = true;
+            if (ev.proposal)
+              finish({ kind: "agent-proposal", proposal: ev.proposal });
+            else
+              finish({
+                kind: "agent-text",
+                text: ev.message ?? "The agent finished without a proposal.",
+              });
+          }
+          if (ev.type === "error") {
+            ended = true;
+            finish(null);
+            toast.error("Edit failed", { description: ev.message });
+          }
+        }
+      }
+      if (!ended) finish(null);
     } catch (err) {
-      setThread((t) => t.filter((i) => i.kind !== "thinking"));
+      finish(null);
       toast.error("Edit failed", {
         description: err instanceof Error ? err.message : "Request failed.",
       });
@@ -204,9 +247,9 @@ export function EditorPanel({
                   aria-label="The agent is working"
                   className="self-start px-1 py-0.5"
                 >
-                  {/* Claude-style shimmer: a light band sweeps the label. */}
+                  {/* Claude-style shimmer over the agent's live status. */}
                   <span className="animate-[text-shimmer_2s_linear_infinite] bg-[linear-gradient(90deg,var(--color-muted-foreground)_35%,var(--color-foreground)_50%,var(--color-muted-foreground)_65%)] bg-[length:200%_100%] bg-clip-text text-sm text-transparent motion-reduce:animate-none">
-                    Reading the paper, searching if needed…
+                    {item.status}
                   </span>
                 </output>
               )}
