@@ -19,6 +19,7 @@ export function ExportPanel({ doc }: { doc: PaperDocument }) {
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
+          nativeButton={false}
           render={
             <a href={`/api/papers/${doc.id}/export?format=tex`} download />
           }
@@ -27,6 +28,7 @@ export function ExportPanel({ doc }: { doc: PaperDocument }) {
         </Button>
         <Button
           variant="outline"
+          nativeButton={false}
           render={
             <a href={`/api/papers/${doc.id}/export?format=bib`} download />
           }
