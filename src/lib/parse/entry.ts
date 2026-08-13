@@ -41,12 +41,20 @@ export function extractEntryFields(text: string): EntryFields {
 
   // Split at sentence boundaries followed by a capital OR by common
   // lowercase venue lead-ins ("arXiv preprint", "in Proceedings", "pages").
+  // The negative lookbehind keeps initials intact: "N. Kamble" is one name,
+  // not a sentence ending at "N.".
   const segments = text
-    .split(/(?<=[.?!])\s+(?=[A-Z"“]|arXiv\b|in\s|pages\s)/)
+    .split(/(?<=[.?!])(?<![A-Z]\.)\s+(?=[A-Z"“]|arXiv\b|in\s|pages\s)/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-  const authorSegment = segments[0] ?? "";
+  // IEEE places the author list directly before the quoted title — when a
+  // quote exists, everything before it is the cleanest author block.
+  const quoteIdx = text.search(/["“]|‘‘/);
+  const authorSegment =
+    quoteIdx > 0
+      ? text.slice(0, quoteIdx).replace(/[,\s]+$/, "")
+      : (segments[0] ?? "");
   const authors = parseAuthors(authorSegment);
   if (authors.length > 0) csl.author = authors;
 

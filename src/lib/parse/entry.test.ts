@@ -55,3 +55,26 @@ describe("extractEntryFields", () => {
     expect((csl.author ?? []).map((a) => a.family)).toContain("van der Maaten");
   });
 });
+
+describe("extractEntryFields — IEEE initials-first entries", () => {
+  it("parses initials-first author lists before a quoted title", () => {
+    const { csl } = extractEntryFields(
+      'N. Kamble and N. Mishra, "Hybrid optimization enabled squeeze net for phishing attack detection," Comput. Secur., vol. 144, Sep. 2024, Art. no. 103901.',
+    );
+    expect(csl.title).toBe(
+      "Hybrid optimization enabled squeeze net for phishing attack detection",
+    );
+    expect(csl.author?.length).toBe(2);
+    expect(csl.author?.[0].family).toBe("Kamble");
+    expect(csl.author?.[1].family).toBe("Mishra");
+  });
+
+  it("keeps long initials-first lists intact across the segment split", () => {
+    const { csl } = extractEntryFields(
+      'E. S. Shombot, G. Dusserre, R. Bestak, and N. B. Ahmed, "An application for predicting phishing attacks: A case of implementing a support vector machine learning model," Cyber Secur. Appl., vol. 2, Jan. 2024.',
+    );
+    expect(csl.author?.length).toBe(4);
+    expect(csl.author?.[0].family).toBe("Shombot");
+    expect(csl.author?.[3].family).toBe("Ahmed");
+  });
+});
