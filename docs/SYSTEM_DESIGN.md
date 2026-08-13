@@ -20,7 +20,17 @@ PDF bytes
                    orphan markers and uncited entries surfaced
 ```
 
-<!-- Per stage, as implemented: the IR type, the algorithm, the failure modes, a fixture example. -->
+### P1 Extract — as implemented (`src/lib/pdf/extract.ts`)
+
+pdfjs-dist text items become positioned spans (x/y from the transform matrix, font size from its vertical scale). Rotated runs (|b| > |a|: arXiv watermarks, figure axis labels) are skipped. Spans merge into visual lines by y-proximity (2.5pt tolerance), with word boundaries inferred from inter-span gaps. Columns per page are detected from the x-start distribution (a second cluster past the midline ⇒ two-column) and lines are emitted in reading order (left column top-to-bottom, then right). Running headers/footers and page numbers are removed GROBID-style: a line repeating near the same page edge on 3+ pages is furniture. IR: `PdfExtract { lines, pages, failures }`. Failure modes: per-page extraction errors; a text-free (scanned) PDF yields the explicit `no-text` failure rather than an empty parse.
+
+### P2 Structure — as implemented (`src/lib/parse/structure.ts`)
+
+Body font size = length-weighted dominant size. Title = largest-font line cluster on page 1. Heading classification: (a) numbered lines ("3", "3.1", "IV.") in a larger font; (b) dotted-number + Title-Case lines at any size (many templates set subsections at body size, bold only — bold is not reliably exposed by pdfjs); (c) known unnumbered headings (Abstract, References, ...); (d) short standalone larger-font lines. Two de-noising passes: title lines are excluded, and any heading text recurring 3+ times (repeated figure labels) is rejected unless numbered/known. Paragraphs split on vertical gaps > 1.6× the median line gap, with hyphenation repair. Failure modes: `no-title`, `no-headings`, `no-abstract` — each surfaced, never guessed. Verified on arXiv 1706.03762: full hierarchy to level 3 (3.2.1 ...), zero failures.
+
+### P3 Locate references — as implemented (`src/lib/parse/references.ts`)
+
+Primary: the *last* heading matching References/Bibliography/Works Cited (last, because a ToC can mention it earlier); the region runs to the next post-reference heading (Appendix, Acknowledgments) or EOF. Fallback: citation-density scan over the final third — the longest run of citation-shaped lines (`[n]`, `n.`, author-initials patterns, tolerating wrapped continuation lines), reported as an explicit `no-heading-fallback` failure so the user knows the location was inferred. Failure mode: `not-found` with an empty region — surfaced in the UI.
 
 ### Where CSL-JSON fits
 
@@ -33,6 +43,15 @@ One canonical model: every citation — parsed from the PDF or fetched from an A
 ## 2. The agent: peer review + natural-language editing
 
 Design follows Anthropic's "Building Effective Agents": the predictable path is a hardcoded workflow, the unpredictable one is a small tool-use agent, and the safety property is enforced by deterministic code rather than prompts.
+
+### Why no agent framework
+
+We evaluated Vercel's eve (June 2026, beta) and Cloudflare's Agents SDK (Durable-Object-backed stateful agents, expanded during Agents Week 2026) and deliberately built the agent layer by hand on the raw Anthropic SDK. Reasons:
+
+- What frameworks provide — durable sessions, multi-channel entry points, sandboxed compute, deployment plumbing — is infrastructure this app does not need: one user, one process, short-lived runs against a local document.
+- What this app *does* need — typed edit operations, a deterministic citation-invariant gate, honest API error surfacing — no framework provides; it is domain logic either way.
+- The 12-factor-agents observation matches our experience: a reliable agent is mostly deterministic software with the LLM confined to the decision points where probabilistic reasoning helps (relevance judgment, entailment, edit proposal). Owning the loop (~100 LOC) keeps every control-flow decision inspectable and testable.
+- We keep the good conventions frameworks converge on — one typed tool per file, instructions separate from code, human approval as a first-class step (eve-style layout) — so the layer would port to eve or the Cloudflare Agents SDK if it ever needed durable, deployed sessions.
 
 ### Peer review (orchestrator-worker workflow — predictable path, hardcoded)
 

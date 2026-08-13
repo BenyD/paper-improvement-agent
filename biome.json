@@ -24,7 +24,8 @@
     "rules": {
       "preset": "recommended",
       "suspicious": {
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "noArrayIndexKey": "off"
       }
     },
     "domains": {
