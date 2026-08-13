@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Paper Improvement Agent
 
-## Getting Started
+Upload a research paper PDF, get a peer review grounded in real academic search (Semantic Scholar + OpenAlex), and improve the paper with natural-language editing commands — without ever losing a citation.
 
-First, run the development server:
+Built for the AnswerThis founding engineer assessment ([brief](docs/AnswerThis-Founding-Engineer-Assessment%20(2).pdf)).
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # add your ANTHROPIC_API_KEY
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `ANTHROPIC_API_KEY` is required for peer review and editing (the agent). Upload and citation parsing work without it.
+- `SEMANTIC_SCHOLAR_API_KEY` is optional (higher rate limits); OpenAlex needs no key.
+- Test with any real paper — an arXiv PDF works best because its references resolve on both APIs.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test        # vitest unit suite (parsing stages, invariant validator)
+npm run lint    # biome
+npm run typecheck
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## What it does
 
-## Learn More
+<!-- Filled in as phases land: parse view, peer review, agentic editing, export -->
 
-To learn more about Next.js, take a look at the following resources:
+## System design
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) — covers the citation-parsing pipeline (PDF → CSL-JSON) and the agent architecture (peer review + natural-language editing).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Where AI tools were used
 
-## Deploy on Vercel
+<!-- Required by the brief. Keep honest and specific; update per phase. -->
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project was built with Claude Code (Claude Fable 5). The division of labor:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- AI-written: (to fill in per phase)
+- Human-designed and verified: (to fill in per phase)
+
+## Known limitations
+
+<!-- Required by the brief. Update per phase; honest limitations are graded better than hidden ones. -->
+
+- (to fill in)
+
+## With more time
+
+- Production path: Postgres + object storage for papers, authenticated multi-tenant workspaces, Redis-backed job queue for long-running reviews.
+- (to fill in)
