@@ -10,9 +10,10 @@ Take-home assessment: upload a research paper PDF → parse structure + citation
 - Citation invariants are enforced by deterministic code (`src/lib/doc/invariants.ts`), never by prompting. Every edit op is validated before it can be applied.
 - Failures are data: unparsed references, empty searches, and low-confidence matches flow to the UI; never silently drop them.
 
-## Next.js conventions (v15+, App Router)
+## Next.js conventions (v16, App Router)
 
-- Fetch and GET route handlers are NOT cached by default in Next 15 — opt in explicitly.
+- We are on Next 16.x — check `package.json` before assuming version-specific APIs; do not downgrade.
+- Fetch and GET route handlers are NOT cached by default (Next 15+ semantics) — opt in explicitly. Prefer the modern `"use cache"` directive over legacy implicit caching if we enable `cacheComponents`.
 - External API calls (OpenAlex, Semantic Scholar) go through `src/lib/sources/` clients that use `fetch` with `next: { revalidate: 86400 }` (academic metadata is stable) plus an on-disk cache in `data/cache/` so demos work offline and calls stay honest/replayable.
 - Anthropic API calls and anything user-specific: `cache: 'no-store'`.
 - Server Components by default; `"use client"` only for interactive leaves (upload dropzone, diff approval, chat input).
