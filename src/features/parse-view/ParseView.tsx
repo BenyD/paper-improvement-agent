@@ -144,10 +144,13 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
             if (section.paragraphs.length === 0) {
               const hasSubsections =
                 (doc.sections[idx + 1]?.level ?? 0) > section.level;
+              // A parent whose text lives in its subsections renders in the
+              // same card language as its siblings; the muted fill marks it
+              // as the group header for the rows beneath.
               return (
                 <li key={section.id}>
                   <div
-                    className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium"
+                    className={`rounded-lg border border-border px-4 py-2.5 text-sm font-medium ${hasSubsections ? "bg-muted/40" : ""}`}
                     style={{
                       paddingLeft: `${1 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
                     }}
