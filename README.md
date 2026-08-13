@@ -33,7 +33,9 @@ Tested end-to-end on arXiv 1706.03762 ("Attention Is All You Need"): 40/41 refer
 
 ## System design
 
-See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) — covers the citation-parsing pipeline (PDF → CSL-JSON) and the agent architecture (peer review + natural-language editing).
+![Architecture](docs/architecture.svg)
+
+See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) — covers the citation-parsing pipeline (PDF → CSL-JSON) and the agent architecture (peer review + natural-language editing). The diagram source is editable at [excalidraw.com](https://excalidraw.com) via [docs/architecture.excalidraw](docs/architecture.excalidraw).
 
 ## Where AI tools were used
 

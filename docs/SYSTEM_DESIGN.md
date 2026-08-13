@@ -2,6 +2,8 @@
 
 The two graded pieces: how a PDF becomes normalized, CSL-JSON citations, and how the agent performs peer review and natural-language editing without breaking them.
 
+![Architecture](architecture.svg)
+
 ## 1. Citation parsing: PDF → CSL-JSON
 
 Architecture note: the pipeline deliberately mirrors GROBID's design — a cascade of specialized stages operating on layout tokens rather than raw text — with documented heuristics in place of GROBID's ML models. Every stage emits a typed intermediate representation carrying a `failures[]` array: failure is data that flows to the UI, never a silent drop.
