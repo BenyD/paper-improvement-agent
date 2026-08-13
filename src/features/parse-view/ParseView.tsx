@@ -1,11 +1,15 @@
 import {
   AlignLeft,
   ArrowLeft,
+  BookOpen,
+  Calendar,
   ChevronRight,
+  Columns2,
   FileText,
   ListTree,
 } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ExportActions } from "@/features/export/ExportActions";
@@ -116,11 +120,27 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
               <h1 className="text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
                 {doc.title || "(no title detected)"}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {doc.meta.filename}, {doc.meta.pageCount} pages,{" "}
-                {doc.meta.layout}
-                {doc.meta.year && `, ${doc.meta.year}`}
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="max-w-72 text-muted-foreground"
+                  title={doc.meta.filename}
+                >
+                  <FileText aria-hidden />
+                  <span className="truncate">{doc.meta.filename}</span>
+                </Badge>
+                <Badge variant="outline" className="text-muted-foreground">
+                  <BookOpen aria-hidden /> {doc.meta.pageCount} pages
+                </Badge>
+                <Badge variant="outline" className="text-muted-foreground">
+                  <Columns2 aria-hidden /> {doc.meta.layout}
+                </Badge>
+                {doc.meta.year && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    <Calendar aria-hidden /> {doc.meta.year}
+                  </Badge>
+                )}
+              </div>
             </div>
           </header>
 
