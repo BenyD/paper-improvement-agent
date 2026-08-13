@@ -101,7 +101,7 @@ export async function resolveByTitle(
             source,
             url: bestLow.item.URL,
             score: bestLow.score,
-            note: "Title matches but year/author could not be corroborated — check before trusting.",
+            note: "Title matches but year/author could not be corroborated; check before trusting.",
           },
         };
       }

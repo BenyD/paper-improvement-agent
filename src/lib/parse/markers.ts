@@ -137,7 +137,7 @@ export function linkMarkers(
     failures.push({
       stage: "link-markers",
       code: "orphan-markers",
-      message: `${orphanCount} in-text marker(s) cite entries that could not be found in the reference list.`,
+      message: `${orphanCount} in-text marker${orphanCount === 1 ? " cites" : "s cite"} entries that could not be found in the reference list.`,
     });
   }
 
@@ -244,7 +244,7 @@ function authorYearMarker(
       if (hit && "ref" in hit) targets.push(hit.ref.id);
       else if (hit && "ambiguous" in hit)
         unresolved.push(
-          `${surname}, ${year} — ambiguous, matches ${hit.ambiguous.length} entries`,
+          `${surname}, ${year} (ambiguous: matches ${hit.ambiguous.length} entries)`,
         );
       else unresolved.push(`${surname}, ${year}`);
     }
@@ -284,7 +284,7 @@ function narrativeMarker(
       ? []
       : [
           hit && "ambiguous" in hit
-            ? `${surname} (${year}) — ambiguous, matches ${hit.ambiguous.length} entries`
+            ? `${surname} (${year}) (ambiguous: matches ${hit.ambiguous.length} entries)`
             : `${surname} (${year})`,
         ],
   };

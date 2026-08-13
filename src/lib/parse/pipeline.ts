@@ -258,7 +258,7 @@ export async function resolveCitations(
     failures.push({
       stage: "resolve",
       code: "time-budget",
-      message: `${deferred.length} reference(s) not verified yet: the academic APIs were slow (rate limits), so resolution paused at the time budget. Retry verification resolves them in place.`,
+      message: `${deferred.length} reference${deferred.length === 1 ? " is" : "s are"} not verified yet: the academic APIs were slow (rate limits), so resolution paused at the time budget. Retry verification resolves them in place.`,
     });
   }
 
