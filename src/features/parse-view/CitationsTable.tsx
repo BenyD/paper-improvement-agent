@@ -84,15 +84,32 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
 
   return (
     <section aria-labelledby="citations-heading">
-      <div className="mb-1 flex flex-wrap items-center gap-3">
-        <h2
-          id="citations-heading"
-          className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          <BookMarked className="size-4" aria-hidden />
-          Citations: {entries.length} references ({verified} verified),{" "}
-          {markers.length} in-text markers
-        </h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <h2
+            id="citations-heading"
+            className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            <BookMarked className="size-4" aria-hidden />
+            Citations
+          </h2>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline">{entries.length} references</Badge>
+            <Badge className="bg-(--success)/10 text-(--success)">
+              <BadgeCheck aria-hidden /> {verified} verified
+            </Badge>
+            <Badge variant="outline">{markers.length} in-text markers</Badge>
+            {orphans.length > 0 && (
+              <Badge className="bg-(--warning)/10 text-(--warning)">
+                <CircleAlert aria-hidden /> {orphans.length} orphan
+                {orphans.length === 1 ? "" : "s"}
+              </Badge>
+            )}
+            <Badge variant="secondary" className="font-mono text-[11px]">
+              {entryStyle ?? "unknown"} / {citationStyle}
+            </Badge>
+          </div>
+        </div>
         {entries.length - verified > 0 && (
           <ReverifyButton
             paperId={doc.id}
@@ -100,15 +117,6 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
           />
         )}
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        List style <span className="font-mono">{entryStyle ?? "unknown"}</span>,
-        citation style <span className="font-mono">{citationStyle}</span>
-        {orphans.length > 0 && (
-          <span className="ml-2 text-amber-600 dark:text-amber-400">
-            ({orphans.length} orphan markers)
-          </span>
-        )}
-      </p>
       <InlineIssues failures={issuesFor(doc.failures, "citations")} />
       {entries.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-10 text-center">
