@@ -1,8 +1,11 @@
+import { AlignLeft, ArrowLeft, FileText, ListTree } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ExportActions } from "@/features/export/ExportActions";
 import type { PaperDocument } from "@/lib/doc/types";
 import { CitationsTable } from "./CitationsTable";
-import { FailuresPanel } from "./FailuresPanel";
+import { InlineIssues, issuesFor } from "./InlineIssues";
 
 /** Render ⟦^n⟧ superscript-marker tokens from P1 as real superscripts. */
 function renderParagraph(text: string) {
@@ -21,8 +24,28 @@ function renderParagraph(text: string) {
 
 export function ParseView({ doc }: { doc: PaperDocument }) {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-6 sm:px-8">
-      <FailuresPanel failures={doc.failures} />
+    <div className="flex w-full flex-col gap-8 px-4 py-6 sm:px-8 lg:px-10">
+      <header className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            All papers
+          </Link>
+          <ExportActions doc={doc} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
+            {doc.title || "(no title detected)"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {doc.meta.filename}, {doc.meta.pageCount} pages, {doc.meta.layout}
+            {doc.meta.year && `, ${doc.meta.year}`}
+          </p>
+        </div>
+      </header>
 
       {doc.abstract !== "" && (
         <Card>
@@ -38,10 +61,12 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
       <section aria-labelledby="structure-heading">
         <h2
           id="structure-heading"
-          className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
         >
+          <ListTree className="size-4" aria-hidden />
           Structure ({doc.sections.length} sections)
         </h2>
+        <InlineIssues failures={issuesFor(doc.failures, "structure")} />
         <ul className="flex flex-col gap-1">
           {doc.sections.map((section) => (
             <li key={section.id}>
@@ -52,9 +77,13 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
                     paddingLeft: `${1 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
                   }}
                 >
-                  {section.heading}
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    {section.paragraphs.length} ¶
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{section.heading}</span>
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
+                      <AlignLeft className="size-3.5" aria-hidden />
+                      {section.paragraphs.length}
+                      <span className="sr-only">paragraphs</span>
+                    </span>
                   </span>
                 </summary>
                 <Separator />
@@ -79,12 +108,14 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
       <section aria-labelledby="raw-refs-heading">
         <h2
           id="raw-refs-heading"
-          className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
         >
+          <FileText className="size-4" aria-hidden />
           Raw reference region
           {doc.references.heading && ` "${doc.references.heading}"`}, page{" "}
           {doc.references.startPage}
         </h2>
+        <InlineIssues failures={issuesFor(doc.failures, "references")} />
         {doc.references.rawLines.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No reference list located.

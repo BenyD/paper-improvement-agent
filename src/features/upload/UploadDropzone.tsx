@@ -1,15 +1,12 @@
 "use client";
 
-import { FileText, Loader2, UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type UploadState =
-  | { phase: "idle" }
-  | { phase: "uploading"; name: string }
-  | { phase: "error"; message: string };
+type UploadState = { phase: "idle" } | { phase: "uploading"; name: string };
 
 export function UploadDropzone() {
   const router = useRouter();
@@ -29,9 +26,10 @@ export function UploadDropzone() {
           throw new Error(json.error ?? `Upload failed (${res.status})`);
         router.push(`/paper/${json.id}`);
       } catch (err) {
-        setState({
-          phase: "error",
-          message: err instanceof Error ? err.message : "Upload failed.",
+        setState({ phase: "idle" });
+        toast.error("Upload failed", {
+          description:
+            err instanceof Error ? err.message : "Something went wrong.",
         });
       }
     },
@@ -107,13 +105,6 @@ export function UploadDropzone() {
           if (file) void upload(file);
         }}
       />
-      {state.phase === "error" && (
-        <Alert variant="destructive" className="mt-4">
-          <FileText aria-hidden />
-          <AlertTitle>Upload failed</AlertTitle>
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }

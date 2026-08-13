@@ -1,8 +1,8 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { CircleCheck, Loader2, ScanSearch } from "lucide-react";
 import { useCallback, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,13 +28,11 @@ export function ReviewPanel({
   );
   const [result, setResult] = useState<ReviewResult | null>(initialReview);
   const [progress, setProgress] = useState<string>("");
-  const [error, setError] = useState<string>("");
 
   const start = useCallback(() => {
     setPhase("running");
     setFindings([]);
     setResult(null);
-    setError("");
     setProgress("Starting review…");
 
     const es = new EventSource(`/api/papers/${paperId}/review`);
@@ -42,7 +40,8 @@ export function ReviewPanel({
       const ev = JSON.parse(msg.data) as ReviewEvent;
       if (ev.type === "progress") setProgress(ev.message);
       if (ev.type === "finding") setFindings((prev) => [...prev, ev.finding]);
-      if (ev.type === "error") setError(ev.message);
+      if (ev.type === "error")
+        toast.error("Review error", { description: ev.message });
       if (ev.type === "done") {
         setResult(ev.result);
         setPhase("done");
@@ -59,10 +58,13 @@ export function ReviewPanel({
         });
         if (!res.ok) {
           const json = (await res.json()) as { error?: string };
-          if (json.error) setError(json.error);
+          if (json.error)
+            toast.error("Review unavailable", { description: json.error });
         }
       } catch {
-        setError((e) => e || "Review stream failed.");
+        toast.error("Review stream failed", {
+          description: "Check the server and try again.",
+        });
       }
     };
   }, [paperId]);
@@ -92,11 +94,17 @@ export function ReviewPanel({
       </div>
 
       {phase === "idle" && (
-        <p className="text-sm text-muted-foreground">
-          Searches OpenAlex and Semantic Scholar for relevant work the paper
-          does not cite, and checks whether cited sources actually support the
-          claims attached to them.
-        </p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+            <ScanSearch className="size-5 text-muted-foreground" aria-hidden />
+          </div>
+          <p className="text-sm font-medium">No review yet</p>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            Searches OpenAlex and Semantic Scholar for relevant work the paper
+            does not cite, and checks whether cited sources actually support the
+            claims attached to them.
+          </p>
+        </div>
       )}
 
       {/* Live region: progress + incoming findings are announced politely. */}
@@ -119,12 +127,6 @@ export function ReviewPanel({
           </div>
         )}
       </output>
-
-      {error && (
-        <Alert variant="destructive" className="mt-2">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       {(phase === "done" || findings.length > 0) && (
         <div className="mt-2 flex flex-col gap-6">
@@ -188,7 +190,13 @@ function FindingGroup({
     <div>
       <h3 className="mb-2 text-sm font-semibold">{title}</h3>
       {findings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{empty}</p>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CircleCheck
+            className="size-4 shrink-0 text-(--success)"
+            aria-hidden
+          />
+          {empty}
+        </p>
       ) : (
         <ul className="flex flex-col gap-3">
           {findings.map((f) => (

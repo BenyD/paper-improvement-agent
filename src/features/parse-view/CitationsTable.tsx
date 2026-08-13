@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BookMarked, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PaperDocument, ReferenceEntry } from "@/lib/doc/types";
+import { InlineIssues, issuesFor } from "./InlineIssues";
 import { ReverifyButton } from "./ReverifyButton";
 
 function formatAuthors(entry: ReferenceEntry): string {
@@ -37,7 +38,7 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
           />
         }
       >
-        ✓ {label}
+        ✓ {label} <ExternalLink className="size-3" aria-hidden />
       </Badge>
     );
   }
@@ -78,8 +79,9 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
       <div className="mb-1 flex flex-wrap items-center gap-3">
         <h2
           id="citations-heading"
-          className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
         >
+          <BookMarked className="size-4" aria-hidden />
           Citations: {entries.length} references ({verified} verified),{" "}
           {markers.length} in-text markers
         </h2>
@@ -99,15 +101,16 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
           </span>
         )}
       </p>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <InlineIssues failures={issuesFor(doc.failures, "citations")} />
+      <div className="overflow-x-auto rounded-xl border border-border">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="w-10">#</TableHead>
-              <TableHead>Authors</TableHead>
+              <TableHead className="hidden sm:table-cell">Authors</TableHead>
               <TableHead className="min-w-48">Title</TableHead>
-              <TableHead>Year</TableHead>
-              <TableHead>Cited</TableHead>
+              <TableHead className="w-14">Year</TableHead>
+              <TableHead className="hidden w-14 md:table-cell">Cited</TableHead>
               <TableHead>Source</TableHead>
             </TableRow>
           </TableHeader>
@@ -117,11 +120,11 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {entry.marker ?? "•"}
                 </TableCell>
-                <TableCell className="whitespace-nowrap">
+                <TableCell className="hidden max-w-40 truncate whitespace-nowrap sm:table-cell">
                   {formatAuthors(entry)}
                 </TableCell>
                 <TableCell className="max-w-md">
-                  <span title={entry.rawText}>
+                  <span className="line-clamp-2" title={entry.rawText}>
                     {entry.csl.title ?? (
                       <em className="text-muted-foreground">no title parsed</em>
                     )}
@@ -130,7 +133,7 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
                 <TableCell className="font-mono text-xs">
                   {entry.csl.issued?.["date-parts"]?.[0]?.[0] ?? "—"}
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
+                <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
                   {citedIds.has(entry.id) ? (
                     markers.filter((m) => m.targets.includes(entry.id)).length
                   ) : (
@@ -147,23 +150,6 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
           </TableBody>
         </Table>
       </div>
-      {orphans.length > 0 && (
-        <Alert className="mt-3">
-          <AlertTitle>
-            Orphan in-text markers (cite nothing in the list)
-          </AlertTitle>
-          <AlertDescription>
-            {orphans.slice(0, 8).map((m) => (
-              <p key={m.id} className="font-mono text-xs">
-                {m.raw} <span className="font-sans">in {m.sectionId}</span>
-                {m.unresolved[0]?.includes("ambiguous") && (
-                  <span className="font-sans"> — {m.unresolved[0]}</span>
-                )}
-              </p>
-            ))}
-          </AlertDescription>
-        </Alert>
-      )}
     </section>
   );
 }

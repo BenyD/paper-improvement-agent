@@ -117,6 +117,18 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+:root {
+  --success: oklch(0.55 0.15 155);
+  --warning: oklch(0.65 0.15 75);
+  --info: oklch(0.55 0.14 245);
+}
+
+.dark {
+  --success: oklch(0.72 0.14 155);
+  --warning: oklch(0.78 0.13 80);
+  --info: oklch(0.72 0.12 245);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
