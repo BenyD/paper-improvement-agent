@@ -136,4 +136,10 @@
   table {
     font-variant-numeric: tabular-nums;
   }
+  /* Tailwind v4 preflight resets buttons to cursor: default; restore the
+     affordance everywhere except disabled states. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
