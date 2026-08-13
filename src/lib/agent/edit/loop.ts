@@ -121,6 +121,12 @@ export async function runEditAgent(
       tools,
     });
 
+    // Dev-visible proof that the document-context cache block is working:
+    // turn 1 should show cache_creation, later turns cache_read.
+    console.log(
+      `[edit-agent] turn ${turn + 1}: input=${res.usage.input_tokens} cache_write=${res.usage.cache_creation_input_tokens ?? 0} cache_read=${res.usage.cache_read_input_tokens ?? 0}`,
+    );
+
     const toolUses = res.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
