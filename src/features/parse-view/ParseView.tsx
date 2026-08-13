@@ -13,6 +13,7 @@ import type { PaperDocument } from "@/lib/doc/types";
 import { isMarkdownTable } from "@/lib/parse/tables";
 import { CitationsTable } from "./CitationsTable";
 import { InlineIssues, issuesFor } from "./InlineIssues";
+import { StructureToggle } from "./StructureToggle";
 
 /** Render a reconstructed markdown table paragraph as a real table. */
 function MarkdownTable({ markdown }: { markdown: string }) {
@@ -128,13 +129,16 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
       )}
 
       <section aria-labelledby="structure-heading">
-        <h2
-          id="structure-heading"
-          className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          <ListTree className="size-4" aria-hidden />
-          Structure ({doc.sections.length} sections)
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2
+            id="structure-heading"
+            className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            <ListTree className="size-4" aria-hidden />
+            Structure ({doc.sections.length} sections)
+          </h2>
+          <StructureToggle />
+        </div>
         <InlineIssues failures={issuesFor(doc.failures, "structure")} />
         <ul className="flex flex-col gap-1">
           {doc.sections.map((section, idx) => {
