@@ -27,7 +27,7 @@ npm run typecheck
 1. **Upload & parse.** A research PDF becomes a structured document through a six-stage pipeline (extract → structure → locate references → segment → parse/resolve → link markers). Every reference is verified against OpenAlex/Semantic Scholar into CSL-JSON with a clickable source link; every in-text marker is bound to its entry. Unparseable entries, orphan markers, and never-cited references are surfaced, not dropped.
 2. **Peer review, on request.** Streams reviewer-style findings: relevant work the paper doesn't cite (year-filtered — nothing newer than the paper), and claim–citation checks judging each citing sentence against the cited work's real abstract. High-severity accusations must survive an adversarial re-check, and every verdict carries a verbatim abstract quote validated in code. Empty searches and skipped entries appear as process notes.
 3. **Edit by instruction.** "Make the introduction more concise" or "add supporting citations to section 2" runs a tool-use agent that proposes typed operations, shown as word-level diffs for approval. A deterministic validator (in the loop *and* at approval) rejects any edit that would lose a citation, cite a nonexistent entry, or add an unverified source — new references can only come from the agent's own verified search results.
-4. **Export.** Rebuilds the paper as compilable LaTeX (verified with tectonic) with `\cite` keys and a citeproc/CSL-rendered bibliography, plus a BibTeX file. Structure, approved edits, and all references survive the round trip.
+4. **Export.** Rebuilds the paper as compilable LaTeX (verified with tectonic) with `\cite` keys and a citeproc/CSL-rendered bibliography, plus a BibTeX file and a structured Markdown version (headings, reconstructed tables, rendered reference list). Structure, approved edits, and all references survive the round trip.
 
 Tested end-to-end on arXiv 1706.03762 ("Attention Is All You Need"): 40/41 references verified with links, 102→71 markers after footnote/math de-noising, and the reviewer independently caught the paper's known byte-pair-encoding mis-citation ([3] Britz et al. instead of Sennrich et al.).
 
@@ -49,8 +49,9 @@ This project was built with Claude Code (Claude Fable 5) driving implementation,
 - Scanned PDFs (no text layer) are rejected with an explicit failure; OCR is not supported.
 - Footnote and figure-caption text can merge into body paragraphs (font-size-based block classification is future work; spans are already preserved to enable it).
 - Aligned-column tables are reconstructed into real tables (a pdf-inspector-inspired heuristic); irregular or drawn-grid tables and mathematical formulas still extract as debris, which the reader de-emphasizes rather than hides.
-- Two-column layouts are split at the column gutter per line (verified on BERT and ResNet); unusual mixed layouts (sidebars, three columns) can still locally misorder text.
-- Semantic Scholar's unauthenticated pool rate-limits aggressively (HTTP 429). Batch requests mostly avoid this; when it still hits, affected entries stay honestly "unverified" with the real cause, and an optional `SEMANTIC_SCHOLAR_API_KEY` removes the rest.
+- Two-column layouts are split at the column gutter per line; an 11-paper audit (arXiv, IEEE Access, MDPI, Springer layouts) parses with zero citation-integrity violations. Unusual mixed layouts (sidebars, three columns) can still locally misorder text.
+- Author-year linking reports ambiguity honestly: a cite matching multiple entries (or an entry the segmenter missed) becomes a visible orphan, never a guessed link.
+- Semantic Scholar's unauthenticated pool rate-limits aggressively (HTTP 429). Batch requests mostly avoid this; when it still hits, upload-time resolution stops at a 90s time budget, affected entries stay honestly "unverified" with the real cause, and the in-place "Retry verification" action (or an optional `SEMANTIC_SCHOLAR_API_KEY`) heals them.
 - Heading detection now reads bold weights from font PostScript names (a pdf-inspector-inspired technique), so bold body-size headings are caught; fonts with nondescript names can still hide their weight.
 - Claim checking judges against the cited work's *abstract* (full texts are not fetched). Abstracts omit details, so the checker can over-flag broad or detail-heavy claims even with prompting toward "cannot-tell"; verdicts are surfaced with confidence levels and severity so the author stays the judge.
 - Missing-work review correctly refuses to suggest papers published after the reviewed paper — reviewing an older classic therefore legitimately yields few or no missing-work findings.
@@ -58,7 +59,7 @@ This project was built with Claude Code (Claude Fable 5) driving implementation,
 ## With more time
 
 - Deploying to Vercel: the app builds and runs, but `data/` filesystem storage is ephemeral on serverless — a deployed instance needs the storage swap below before papers persist across requests/instances.
-- Production path: Postgres + object storage for papers, authenticated multi-tenant workspaces, Redis-backed job queue for long-running reviews; schema versioning for stored documents (today old documents are handled defensively and healed by re-upload).
+- Production path: Postgres + object storage for papers, authenticated multi-tenant workspaces, Redis-backed job queue for long-running reviews (today reviews already checkpoint after every work unit and resume across refreshes; a queue would detach them from the HTTP connection entirely); schema versioning for stored documents (today old documents are handled defensively and healed by re-upload).
 - Claim checking against full texts (DeepSciVerify-style escalation) instead of abstracts only.
 - Vendored `.csl` style files (IEEE, ACM) beyond citation-js's bundled APA/Vancouver/Harvard, with user style pick in the export panel.
 - An end-to-end PDF fixture test (a small committed LaTeX-built paper) exercising P1→P6 in CI.

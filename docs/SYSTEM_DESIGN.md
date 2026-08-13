@@ -64,7 +64,7 @@ This architecture independently matches the three-rubric framework in the citati
 
 ### Export (LaTeX round trip)
 
-`src/lib/export/latex.ts` rebuilds the paper: section hierarchy from levels, LaTeX-escaped text, numeric markers converted to `\cite{ref-n}` (lists and ranges expanded through the entry map — unknown markers are left as text, never fabricated into keys), and a `thebibliography` whose entries are each rendered through citeproc in the template matching the detected citation style, with the raw parsed text as the honest fallback. A companion BibTeX export carries the references as data. The exported `.tex` of the test paper compiles with tectonic, including post-edit state (the added reference appears as `\cite{ref-41}` + bibitem).
+`src/lib/export/latex.ts` rebuilds the paper: section hierarchy from levels, LaTeX-escaped text, numeric markers converted to `\cite{ref-n}` (lists and ranges expanded through the entry map — unknown markers are left as text, never fabricated into keys), and a `thebibliography` whose entries are each rendered through citeproc in the template matching the detected citation style, with the raw parsed text as the honest fallback. A companion BibTeX export carries the references as data. The exported `.tex` of the test paper compiles with tectonic, including post-edit state (the added reference appears as `\cite{ref-41}` + bibitem). A third format, structured Markdown (`src/lib/export/markdown.ts`), renders the same document as a readable `.md`: heading hierarchy, reconstructed tables as GitHub tables, inline markers as text, and the citeproc-rendered reference list.
 
 ## 2. The agent: peer review + natural-language editing
 
