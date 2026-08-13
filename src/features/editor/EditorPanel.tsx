@@ -202,15 +202,11 @@ export function EditorPanel({
                 <output
                   aria-live="polite"
                   aria-label="The agent is working"
-                  className="flex items-center gap-2 self-start rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5"
+                  className="self-start px-1 py-0.5"
                 >
-                  <span className="flex gap-1">
-                    <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
-                    <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
-                    <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    reading the paper, searching if needed…
+                  {/* Claude-style shimmer: a light band sweeps the label. */}
+                  <span className="animate-[text-shimmer_2s_linear_infinite] bg-[linear-gradient(90deg,var(--color-muted-foreground)_35%,var(--color-foreground)_50%,var(--color-muted-foreground)_65%)] bg-[length:200%_100%] bg-clip-text text-sm text-transparent motion-reduce:animate-none">
+                    Reading the paper, searching if needed…
                   </span>
                 </output>
               )}
@@ -303,7 +299,7 @@ export function EditorPanel({
             size="icon"
             aria-label="Send instruction"
             disabled={busy || command.trim().length < 4}
-            className="rounded-xl"
+            className="rounded-full transition-transform active:scale-[0.96]"
           >
             <ArrowUp aria-hidden />
           </Button>
