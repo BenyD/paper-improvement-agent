@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { ReviewResult } from "../agent/review/types";
 import type { PaperDocument } from "../doc/types";
 
 const DATA_DIR = path.join(process.cwd(), "data", "papers");
@@ -30,6 +31,30 @@ export async function loadPaper(id: string): Promise<PaperDocument | null> {
       "utf8",
     );
     return JSON.parse(raw) as PaperDocument;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveReview(
+  paperId: string,
+  review: ReviewResult,
+): Promise<void> {
+  await writeFile(
+    path.join(paperDir(paperId), "review.json"),
+    JSON.stringify(review, null, 2),
+  );
+}
+
+export async function loadReview(
+  paperId: string,
+): Promise<ReviewResult | null> {
+  try {
+    const raw = await readFile(
+      path.join(paperDir(paperId), "review.json"),
+      "utf8",
+    );
+    return JSON.parse(raw) as ReviewResult;
   } catch {
     return null;
   }

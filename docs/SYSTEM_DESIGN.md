@@ -69,11 +69,18 @@ We evaluated Vercel's eve (June 2026, beta) and Cloudflare's Agents SDK (Durable
 - The 12-factor-agents observation matches our experience: a reliable agent is mostly deterministic software with the LLM confined to the decision points where probabilistic reasoning helps (relevance judgment, entailment, edit proposal). Owning the loop (~100 LOC) keeps every control-flow decision inspectable and testable.
 - We keep the good conventions frameworks converge on — one typed tool per file, instructions separate from code, human approval as a first-class step (eve-style layout) — so the layer would port to eve or the Cloudflare Agents SDK if it ever needed durable, deployed sessions.
 
-### Peer review (orchestrator-worker workflow — predictable path, hardcoded)
+### Peer review (orchestrated workflow — predictable path, hardcoded)
 
-<!-- As implemented: query generation per section, both-API search, dedupe vs existing refs,
-     LLM relevance judgment with real abstracts in context, claim-citation entailment check,
-     confidence surfacing, SSE streaming. -->
+As implemented (`src/lib/agent/review/`): a six-step pipeline where the LLM makes exactly three kinds of narrow judgments and deterministic code does everything else.
+
+1. **Section selection** (code): main body sections, bounded excerpts, front matter/acknowledgments skipped.
+2. **Query generation** (LLM, 1 call): section excerpts → ≤2 specific academic search queries per section, enforced by a deterministic guard.
+3. **Search** (code): OpenAlex + Semantic Scholar per query — real APIs, disk-cached; failures become visible process notes.
+4. **Dedupe** (code): candidates already cited (DOI or title ≥ 0.75 similar), the paper itself, and near-duplicate candidates are removed before any model sees them.
+5. **Relevance judgment** (LLM, 1 call/section): candidates with their *real abstracts* in context; the prompt demands where-and-why per acceptance and prefers empty results over padding; capped at 3 findings/section.
+6. **Claim checking** (LLM, 1 call/entry): for every cited entry with a verified abstract, all citing sentences (extracted by a deterministic sentence-boundary walker that survives "et al.") are judged against that abstract: supports / partially-supports / does-not-support / cannot-tell, with "cannot-tell" explicitly sanctioned. Entries without abstracts are skipped and counted — honesty over guessing.
+
+Every model call goes through one `structured()` entry point (forced tool-use + zod validation — no freeform JSON parsing anywhere), with prompts in a separate instructions module. Every finding carries the real source's link; findings stream to the UI over SSE as they are produced, followed by stats (sections scanned, claims checked/supported, skips) and process notes. A missing API key degrades to a clear 503, not a broken page.
 
 ### Editing (tool-use agent — unpredictable path)
 

@@ -17,7 +17,13 @@ function renderParagraph(text: string) {
   );
 }
 
-export function ParseView({ doc }: { doc: PaperDocument }) {
+export function ParseView({
+  doc,
+  children,
+}: {
+  doc: PaperDocument;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
       <header className="flex flex-col gap-2">
@@ -76,6 +82,8 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
       </section>
 
       <CitationsTable doc={doc} />
+
+      {children}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
