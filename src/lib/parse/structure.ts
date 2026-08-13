@@ -1,5 +1,6 @@
 import type { Failure } from "../failures";
 import type { Line, PdfExtract } from "../pdf/types";
+import { detectTableRuns } from "./tables";
 import type { DocumentStructure, Section } from "./types";
 
 /**
@@ -234,6 +235,26 @@ function paragraphsFrom(lines: Line[], excludeText: string): string[] {
   const kept = lines.filter(
     (l) => !excludeText.includes(l.text) || excludeText === "",
   );
+  if (kept.length === 0) return [];
+
+  // Reconstruct aligned-column table runs first (pdf-inspector-style); the
+  // remaining segments go through ordinary gap-based paragraph grouping.
+  const tableRuns = detectTableRuns(kept);
+  if (tableRuns.length > 0) {
+    const out: string[] = [];
+    let cursor = 0;
+    for (const run of tableRuns) {
+      out.push(...gapParagraphs(kept.slice(cursor, run.start)));
+      out.push(run.markdown);
+      cursor = run.end;
+    }
+    out.push(...gapParagraphs(kept.slice(cursor)));
+    return out.filter((x) => x.length > 0);
+  }
+  return gapParagraphs(kept);
+}
+
+function gapParagraphs(kept: Line[]): string[] {
   if (kept.length === 0) return [];
 
   const gaps: number[] = [];

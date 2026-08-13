@@ -10,8 +10,56 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ExportActions } from "@/features/export/ExportActions";
 import type { PaperDocument } from "@/lib/doc/types";
+import { isMarkdownTable } from "@/lib/parse/tables";
 import { CitationsTable } from "./CitationsTable";
 import { InlineIssues, issuesFor } from "./InlineIssues";
+
+/** Render a reconstructed markdown table paragraph as a real table. */
+function MarkdownTable({ markdown }: { markdown: string }) {
+  const rows = markdown
+    .split("\n")
+    .filter((r) => !/^\| ?---/.test(r))
+    .map((r) =>
+      r
+        .replace(/^\| /, "")
+        .replace(/ \|$/, "")
+        .split(" | ")
+        .map((c) => c.replace(/\\\|/g, "|")),
+    );
+  const [header, ...body] = rows;
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="bg-muted/40">
+            {header.map((c, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: static table render
+              <th key={i} className="px-2.5 py-1.5 text-left font-medium">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static table render
+            <tr key={i} className="border-t border-border/60">
+              {row.map((c, j) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static table render
+                <td
+                  key={j}
+                  className="px-2.5 py-1.5 align-top text-muted-foreground"
+                >
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /**
  * PDF tables have no text structure — their cells extract as loose numeric
@@ -123,7 +171,9 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
                   }}
                 >
                   {section.paragraphs.map((p, i) =>
-                    isTableDebris(p) ? (
+                    isMarkdownTable(p) ? (
+                      <MarkdownTable key={`${section.id}-${i}`} markdown={p} />
+                    ) : isTableDebris(p) ? (
                       <p
                         key={`${section.id}-${i}`}
                         title="Table or figure data from the PDF layout; tables have no text structure in PDFs."

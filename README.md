@@ -48,7 +48,7 @@ This project was built with Claude Code (Claude Fable 5) driving implementation,
 
 - Scanned PDFs (no text layer) are rejected with an explicit failure; OCR is not supported.
 - Footnote and figure-caption text can merge into body paragraphs (font-size-based block classification is future work; spans are already preserved to enable it).
-- Mathematical formulas extract as garbled glyph runs; they are ignored by citation logic.
+- Aligned-column tables are reconstructed into real tables (a pdf-inspector-inspired heuristic); irregular or drawn-grid tables and mathematical formulas still extract as debris, which the reader de-emphasizes rather than hides.
 - Two-column layouts are split at the column gutter per line (verified on BERT and ResNet); unusual mixed layouts (sidebars, three columns) can still locally misorder text.
 - Semantic Scholar's unauthenticated pool rate-limits aggressively (HTTP 429). Batch requests mostly avoid this; when it still hits, affected entries stay honestly "unverified" with the real cause, and an optional `SEMANTIC_SCHOLAR_API_KEY` removes the rest.
 - Heading detection now reads bold weights from font PostScript names (a pdf-inspector-inspired technique), so bold body-size headings are caught; fonts with nondescript names can still hide their weight.
