@@ -102,6 +102,10 @@ Two structural guarantees are enforced by the loop itself, not by prompting:
 
 The LLM proposes; code enforces; the user approves. `validateOps` (`src/lib/doc/invariants.ts`) rejects any op set where: a previously-cited reference would no longer be cited anywhere (set semantics — no reference loses its last citation; explicit removal is not an operation this system offers), the edited text cites a marker that resolves to no entry (fabrication), a new reference is not verified against a real source, an entry would disappear, or the ops are structurally unsound (bad section/paragraph, conflicting targets). It runs twice: inside the agent loop at proposal time, and again at approval time against the current document. Violations are not repairable by prompting because the check is not a prompt. The validator has its own test suite covering the drop/move/delete/fabricate/unverified cases; approval archives the previous document version before applying.
 
+### When verification happens
+
+Three moments, one honesty rule. (1) **Parse time**: every parsed reference is resolved against OpenAlex/Semantic Scholar (batch identifiers, corroborated title search) — badges, links and abstracts exist before any LLM is involved. (2) **Edit time**: a citation the agent wants to ADD is verified as part of its own search; it cannot enter the document otherwise. (3) **On demand**: entries left unverified by API rate limits carry a "Retry verification" action that re-resolves only the unverified entries in place — the document id, approved edits and history all survive, and verified entries are never re-touched. Review time deliberately adds no re-verification: it reasons on top of the parse-time foundation (claim checks use stored abstracts, and only for verified entries).
+
 ### External APIs
 
 <!-- As implemented: client design, on-disk cache under data/cache/, rate limits,

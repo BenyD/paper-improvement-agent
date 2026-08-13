@@ -134,10 +134,20 @@ export function computePaperYear(
  */
 export async function resolveCitations(
   doc: PaperDocument,
+  opts: { onlyUnverified?: boolean } = {},
 ): Promise<PaperDocument> {
   const entries = [...doc.citations.entries];
   const fields = entries.map((e) => extractEntryFields(e.rawText));
-  const pending = new Set(entries.map((_, i) => i));
+  // Re-verification mode touches only entries that are not yet verified —
+  // verified entries and edit-added references keep their records untouched.
+  const pending = new Set(
+    entries
+      .map((_, i) => i)
+      .filter(
+        (i) =>
+          !opts.onlyUnverified || entries[i].resolution.status !== "verified",
+      ),
+  );
 
   const verify = (
     i: number,

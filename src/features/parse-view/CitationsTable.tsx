@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PaperDocument, ReferenceEntry } from "@/lib/doc/types";
+import { ReverifyButton } from "./ReverifyButton";
 
 function formatAuthors(entry: ReferenceEntry): string {
   const authors = entry.csl.author ?? [];
@@ -74,13 +75,21 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
 
   return (
     <section aria-labelledby="citations-heading">
-      <h2
-        id="citations-heading"
-        className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-      >
-        Citations: {entries.length} references ({verified} verified),{" "}
-        {markers.length} in-text markers
-      </h2>
+      <div className="mb-1 flex flex-wrap items-center gap-3">
+        <h2
+          id="citations-heading"
+          className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          Citations: {entries.length} references ({verified} verified),{" "}
+          {markers.length} in-text markers
+        </h2>
+        {entries.length - verified > 0 && (
+          <ReverifyButton
+            paperId={doc.id}
+            unverifiedCount={entries.length - verified}
+          />
+        )}
+      </div>
       <p className="mb-3 text-xs text-muted-foreground">
         List style <span className="font-mono">{entryStyle ?? "unknown"}</span>,
         citation style <span className="font-mono">{citationStyle}</span>
