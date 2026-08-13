@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { PaperDocument, ReferenceEntry } from "../doc/types";
 import { extractPdf } from "../pdf/extract";
-import { resolveEntry } from "../sources/resolve";
+import { openAlexByDois } from "../sources/openalex";
+import { resolveByTitle } from "../sources/resolve";
+import { s2Batch } from "../sources/semanticscholar";
 import { extractEntryFields } from "./entry";
 import { linkMarkers } from "./markers";
 import { locateReferences } from "./references";
@@ -96,36 +98,100 @@ export async function parsePaper(
 }
 
 /**
- * P5b — Verify every entry against OpenAlex / Semantic Scholar (see
- * resolveEntry for the order and honesty rules). Mutates nothing: returns the
- * document with enriched entries. Concurrency-limited to stay polite.
+ * P5b — Verify every entry against OpenAlex / Semantic Scholar.
+ *
+ * Batch-first (Crossref-style efficiency, our honesty rules):
+ *  1. All DOIs in one OpenAlex OR-filter batch (50/request) — exact matches.
+ *  2. Remaining arXiv ids in one Semantic Scholar POST /paper/batch — exact.
+ *  3. arXiv ids S2 missed retry as OpenAlex DataCite DOIs (10.48550/arXiv.x).
+ *  4. Only the leftovers hit the per-entry title-search path, where matches
+ *     must survive year/author corroboration (see resolveByTitle).
+ * Mutates nothing: returns the document with enriched entries.
  */
 export async function resolveCitations(
   doc: PaperDocument,
 ): Promise<PaperDocument> {
   const entries = [...doc.citations.entries];
-  const CONCURRENCY = 4;
+  const fields = entries.map((e) => extractEntryFields(e.rawText));
+  const pending = new Set(entries.map((_, i) => i));
 
+  const verify = (
+    i: number,
+    csl: import("../csl/types").CslItem,
+    source: "openalex" | "semanticscholar",
+  ) => {
+    entries[i] = {
+      ...entries[i],
+      csl: { ...csl, id: entries[i].id },
+      resolution: { status: "verified", source, url: csl.URL, score: 1 },
+    };
+    pending.delete(i);
+  };
+
+  // 1. DOI batch via OpenAlex.
+  const doiIndex = new Map<string, number>();
+  for (const i of pending) {
+    const doi = fields[i].csl.DOI?.toLowerCase();
+    if (doi) doiIndex.set(doi, i);
+  }
+  if (doiIndex.size > 0) {
+    const hits = await openAlexByDois([...doiIndex.keys()]);
+    for (const [doi, item] of hits) {
+      const i = doiIndex.get(doi);
+      if (i !== undefined) verify(i, item, "openalex");
+    }
+  }
+
+  // 2. arXiv batch via Semantic Scholar.
+  const arxivIndex = new Map<string, number>();
+  for (const i of pending) {
+    const arxiv = fields[i].csl.custom?.arxiv;
+    if (arxiv) arxivIndex.set(`arXiv:${arxiv}`, i);
+  }
+  if (arxivIndex.size > 0) {
+    const hits = await s2Batch([...arxivIndex.keys()]);
+    for (const [id, item] of hits) {
+      const i = arxivIndex.get(id);
+      if (i !== undefined) verify(i, item, "semanticscholar");
+    }
+  }
+
+  // 3. arXiv ids S2 missed → OpenAlex DataCite DOIs.
+  const dataciteIndex = new Map<string, number>();
+  for (const i of pending) {
+    const arxiv = fields[i].csl.custom?.arxiv;
+    if (arxiv) dataciteIndex.set(`10.48550/arxiv.${arxiv}`.toLowerCase(), i);
+  }
+  if (dataciteIndex.size > 0) {
+    const hits = await openAlexByDois([...dataciteIndex.keys()]);
+    for (const [doi, item] of hits) {
+      const i = dataciteIndex.get(doi);
+      if (i !== undefined) verify(i, item, "openalex");
+    }
+  }
+
+  // 4. Title search for the rest, corroborated before trusting.
+  const leftovers = [...pending];
+  const CONCURRENCY = 4;
   let next = 0;
   async function worker(): Promise<void> {
-    while (next < entries.length) {
-      const i = next++;
-      const entry = entries[i];
-      const fields = extractEntryFields(entry.rawText);
-      const resolved = await resolveEntry(
-        entry.id,
-        fields.csl,
-        fields.titleGuess,
+    while (next < leftovers.length) {
+      const i = leftovers[next++];
+      const resolved = await resolveByTitle(
+        entries[i].id,
+        fields[i].csl,
+        fields[i].titleGuess,
+        entries[i].rawText,
       );
       entries[i] = {
-        ...entry,
+        ...entries[i],
         csl: resolved.csl,
         resolution: resolved.resolution,
       };
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCY, entries.length) }, worker),
+    Array.from({ length: Math.min(CONCURRENCY, leftovers.length) }, worker),
   );
 
   return { ...doc, citations: { ...doc.citations, entries } };

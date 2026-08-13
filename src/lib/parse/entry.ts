@@ -8,7 +8,8 @@ export interface EntryFields {
 }
 
 const DOI_RE = /\b10\.\d{4,9}\/[^\s"<>;,]+/i;
-const ARXIV_RE = /arxiv[:\s]*(\d{4}\.\d{4,5})(v\d+)?/i;
+// "arXiv:1607.06450" and the pre-2017 CoRR style "abs/1409.0473".
+const ARXIV_RE = /(?:arxiv[:\s]*|abs\/)(\d{4}\.\d{4,5})(v\d+)?/i;
 const YEAR_RE = /\b(19|20)\d{2}\b/g;
 
 /**
@@ -75,24 +76,51 @@ function parseAuthors(segment: string): CslName[] {
     if (next && /^([A-Z]\.\s*)+$/.test(next)) {
       names.push({ family: part, given: next.trim() });
       i++;
-    } else if (/^([A-Z]\.\s*)+[A-Z][\p{L}'’-]+$/u.test(part)) {
-      const tokens = part.split(/\s+/);
-      names.push({
-        family: tokens.at(-1),
-        given: tokens.slice(0, -1).join(" "),
-      });
-    } else if (/^[A-Z][\p{L}'’.-]*(\s+[A-Z][\p{L}'’.-]*)*$/u.test(part)) {
-      const tokens = part.split(/\s+/);
-      names.push(
-        tokens.length > 1
-          ? { family: tokens.at(-1), given: tokens.slice(0, -1).join(" ") }
-          : { literal: part },
-      );
+    } else if (
+      /^([A-Z]\.\s*)+[\p{L}'’-]+/u.test(part) ||
+      /^[A-Z][\p{L}'’.-]*(\s+[\p{L}'’.-]+)*$/u.test(part)
+    ) {
+      names.push(splitGivenFamily(part));
     } else {
       names.push({ literal: part });
     }
   }
   return names.slice(0, 30);
+}
+
+const PARTICLES = new Set([
+  "van",
+  "von",
+  "der",
+  "den",
+  "de",
+  "del",
+  "della",
+  "da",
+  "di",
+  "la",
+  "le",
+  "ter",
+  "ten",
+  "dos",
+  "du",
+]);
+
+/** "Laurens van der Maaten" → family "van der Maaten", given "Laurens". */
+function splitGivenFamily(part: string): CslName {
+  const tokens = part.split(/\s+/);
+  if (tokens.length === 1) return { literal: part };
+  let familyStart = tokens.length - 1;
+  for (let i = 1; i < tokens.length - 1; i++) {
+    if (PARTICLES.has(tokens[i].toLowerCase())) {
+      familyStart = i;
+      break;
+    }
+  }
+  return {
+    family: tokens.slice(familyStart).join(" "),
+    given: tokens.slice(0, familyStart).join(" "),
+  };
 }
 
 function pickTitleSegment(segments: string[]): string | null {

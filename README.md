@@ -45,7 +45,7 @@ This project was built with Claude Code (Claude Fable 5). The division of labor:
 - Footnote and figure-caption text can merge into body paragraphs (font-size-based block classification is future work; spans are already preserved to enable it).
 - Mathematical formulas extract as garbled glyph runs; they are ignored by citation logic.
 - Pages mixing full-width and two-column blocks can locally misorder text; standard single- and two-column layouts are handled.
-- Semantic Scholar's unauthenticated pool rate-limits aggressively (HTTP 429). Affected entries stay honestly "unverified" with the real cause; an optional `SEMANTIC_SCHOLAR_API_KEY` removes most of these.
+- Semantic Scholar's unauthenticated pool rate-limits aggressively (HTTP 429). Batch requests mostly avoid this; when it still hits, affected entries stay honestly "unverified" with the real cause, and an optional `SEMANTIC_SCHOLAR_API_KEY` removes the rest.
 - Bold text is not exposed by pdfjs text items, so unnumbered body-size subsection headings can be missed (numbered ones are caught by pattern).
 
 ## With more time

@@ -28,6 +28,33 @@ export async function openAlexByDoi(doi: string): Promise<CslItem | null> {
   }
 }
 
+/**
+ * Batch DOI lookup via OpenAlex's OR-filter (up to 50 DOIs per request).
+ * Returns a map keyed by lowercase DOI; absent keys mean OpenAlex has no
+ * record — an honest miss, not an error.
+ */
+export async function openAlexByDois(
+  dois: string[],
+): Promise<Map<string, CslItem>> {
+  const out = new Map<string, CslItem>();
+  for (let i = 0; i < dois.length; i += 50) {
+    const chunk = dois.slice(i, i + 50);
+    const url = `${BASE}/works?filter=doi:${chunk.join("|")}&per-page=50&${MAILTO}`;
+    try {
+      const res = (await cachedFetchJson(url)) as { results?: OpenAlexWork[] };
+      for (const work of res.results ?? []) {
+        const doi = work.doi
+          ?.replace(/^https:\/\/doi\.org\//, "")
+          .toLowerCase();
+        if (doi) out.set(doi, toCsl(work));
+      }
+    } catch {
+      // chunk failed — entries fall through to the title-search path
+    }
+  }
+  return out;
+}
+
 export async function openAlexSearch(
   query: string,
   perPage = 5,

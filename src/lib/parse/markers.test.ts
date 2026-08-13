@@ -116,6 +116,82 @@ describe("linkMarkers — author-year", () => {
     expect(result.markers[0].targets).toEqual(["ref-vaswani", "ref-devlin"]);
   });
 
+  it("accepts ampersand narrative citations", () => {
+    const twoAuthorRefs: RefForLinking[] = [
+      {
+        id: "ref-sj",
+        marker: null,
+        csl: {
+          author: [{ family: "Smith" }],
+          issued: { "date-parts": [[2019]] },
+        },
+        rawText: "Smith, A. and Jones, B. (2019). A paper.",
+      },
+    ];
+    const result = linkMarkers(
+      [section("intro", ["Smith & Jones (2019) argue this."])],
+      twoAuthorRefs,
+    );
+    expect(result.markers[0]?.targets).toEqual(["ref-sj"]);
+  });
+
+  it("reports same-author-same-year ambiguity instead of guessing", () => {
+    const dup: RefForLinking[] = [
+      {
+        id: "ref-a",
+        marker: null,
+        csl: {
+          author: [{ family: "Smith" }],
+          issued: { "date-parts": [[2020]] },
+        },
+        rawText: "Smith, A. (2020). First paper.",
+      },
+      {
+        id: "ref-b",
+        marker: null,
+        csl: {
+          author: [{ family: "Smith" }],
+          issued: { "date-parts": [[2020]] },
+        },
+        rawText: "Smith, A. (2020). Second paper.",
+      },
+    ];
+    const result = linkMarkers(
+      [section("intro", ["As shown before (Smith, 2020)."])],
+      dup,
+    );
+    expect(result.markers[0].targets).toEqual([]);
+    expect(result.markers[0].unresolved[0]).toContain("ambiguous");
+  });
+
+  it("disambiguates 2020a/2020b via the raw entry text", () => {
+    const dup: RefForLinking[] = [
+      {
+        id: "ref-a",
+        marker: null,
+        csl: {
+          author: [{ family: "Smith" }],
+          issued: { "date-parts": [[2020]] },
+        },
+        rawText: "Smith, A. (2020a). First paper.",
+      },
+      {
+        id: "ref-b",
+        marker: null,
+        csl: {
+          author: [{ family: "Smith" }],
+          issued: { "date-parts": [[2020]] },
+        },
+        rawText: "Smith, A. (2020b). Second paper.",
+      },
+    ];
+    const result = linkMarkers(
+      [section("intro", ["As shown before (Smith, 2020b)."])],
+      dup,
+    );
+    expect(result.markers[0].targets).toEqual(["ref-b"]);
+  });
+
   it("ignores parentheticals that merely contain a number", () => {
     const result = linkMarkers(
       [section("intro", ["The dataset (collected 2019) grew."])],

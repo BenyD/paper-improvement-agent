@@ -11,6 +11,19 @@ function formatAuthors(entry: ReferenceEntry): string {
 
 function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
   const { resolution } = entry;
+  if (resolution.status === "low-confidence") {
+    return (
+      <a
+        href={resolution.url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-400"
+        title={resolution.note}
+      >
+        ≈ low confidence
+      </a>
+    );
+  }
   if (resolution.status === "verified") {
     const label =
       resolution.source === "openalex" ? "OpenAlex" : "Semantic Scholar";

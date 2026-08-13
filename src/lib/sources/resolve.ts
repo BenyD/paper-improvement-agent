@@ -1,11 +1,11 @@
 import type { CslItem } from "../csl/types";
-import { openAlexByDoi, openAlexSearch } from "./openalex";
-import { s2ByArxiv, s2Search } from "./semanticscholar";
+import { openAlexSearch } from "./openalex";
+import { s2Search } from "./semanticscholar";
 
 export interface Resolution {
-  status: "verified" | "unverified";
+  status: "verified" | "low-confidence" | "unverified";
   source?: "openalex" | "semanticscholar";
-  /** Canonical link for the verified work — every verified entry is linkable. */
+  /** Canonical link for the matched work — every verified entry is linkable. */
   url?: string;
   /** Title similarity that justified the match (identifier hits score 1). */
   score?: number;
@@ -17,141 +17,152 @@ export interface ResolvedEntry {
   resolution: Resolution;
 }
 
+const MATCH_THRESHOLD = 0.75;
+
 /**
- * P5b — Resolve a locally-parsed entry against real academic databases.
+ * P5b (title path) — resolve an entry by title search when it carries no
+ * usable identifier (identifier lookups are batched in the pipeline).
  *
- * Order: DOI (exact, OpenAlex) → arXiv id (exact, Semantic Scholar) → title
- * search (OpenAlex first — generous rate limits — then Semantic Scholar),
- * accepted only when normalized title similarity ≥ 0.75. A verified entry
- * adopts the database's richer CSL record (keeping our id); an unresolved one
- * keeps the local best-effort CSL and an honest "unverified" flag. We never
+ * Following Crossref's SBMV design, a title match alone never earns
+ * "verified": candidates are validated against the reference's year (±1) and
+ * the candidate first author's surname appearing in the raw reference text.
+ * An explicit contradiction demotes the match to "low-confidence" (linked,
+ * but visibly uncertain); corroboration promotes it to "verified". We never
  * fabricate a match.
  */
-export async function resolveEntry(
+export async function resolveByTitle(
   id: string,
   local: Partial<CslItem>,
   titleGuess: string | null,
+  rawText: string,
 ): Promise<ResolvedEntry> {
   const keepId = (item: CslItem): CslItem => ({ ...item, id });
+  const asLocal = (): CslItem => ({ id, type: "article", ...local });
 
-  if (local.DOI) {
-    const hit = await openAlexByDoi(local.DOI);
-    if (hit)
-      return {
-        csl: keepId(hit),
-        resolution: {
-          status: "verified",
-          source: "openalex",
-          url: hit.URL,
-          score: 1,
-        },
-      };
+  if (!titleGuess) {
+    return {
+      csl: asLocal(),
+      resolution: {
+        status: "unverified",
+        note: "No title could be extracted to search with.",
+      },
+    };
   }
 
-  if (local.custom?.arxiv) {
-    const hit = await s2ByArxiv(local.custom.arxiv);
-    if (hit) {
-      return {
-        csl: keepId(hit),
-        resolution: {
-          status: "verified",
-          source: "semanticscholar",
-          url: hit.URL,
-          score: 1,
-        },
-      };
-    }
-    // OpenAlex indexes arXiv papers under DataCite DOIs — exact fallback.
-    const oaHit = await openAlexByDoi(`10.48550/arXiv.${local.custom.arxiv}`);
-    if (oaHit) {
-      return {
-        csl: keepId(oaHit),
-        resolution: {
-          status: "verified",
-          source: "openalex",
-          url: oaHit.URL,
-          score: 1,
-        },
-      };
-    }
-  }
+  const errors: string[] = [];
+  let fallback: ResolvedEntry | null = null;
 
-  if (titleGuess) {
-    const errors: string[] = [];
+  for (const [source, search] of [
+    ["openalex", openAlexSearch],
+    ["semanticscholar", s2Search],
+  ] as const) {
     try {
-      const oa = await openAlexSearch(titleGuess);
-      const best = bestMatch(titleGuess, oa);
-      if (best) {
+      const candidates = await search(titleGuess);
+      // Classify every candidate over the threshold and prefer a corroborated
+      // one — the top search hit is not always the right work (e.g. a title
+      // fully contained in a longer, wrong title can outscore the true match).
+      let bestVerified: { item: CslItem; score: number } | null = null;
+      let bestLow: { item: CslItem; score: number } | null = null;
+      for (const item of candidates) {
+        if (!item.title) continue;
+        const score = titleSimilarity(titleGuess, item.title);
+        const verdict = classifyMatch(
+          score,
+          ...corroborate(local, rawText, item),
+        );
+        if (
+          verdict === "verified" &&
+          (bestVerified === null || score > bestVerified.score)
+        )
+          bestVerified = { item, score };
+        if (
+          verdict === "low-confidence" &&
+          (bestLow === null || score > bestLow.score)
+        )
+          bestLow = { item, score };
+      }
+
+      if (bestVerified) {
         return {
-          csl: keepId(best.item),
+          csl: keepId(bestVerified.item),
           resolution: {
             status: "verified",
-            source: "openalex",
-            url: best.item.URL,
-            score: best.score,
+            source,
+            url: bestVerified.item.URL,
+            score: bestVerified.score,
+          },
+        };
+      }
+      if (bestLow && fallback === null) {
+        fallback = {
+          csl: keepId(bestLow.item),
+          resolution: {
+            status: "low-confidence",
+            source,
+            url: bestLow.item.URL,
+            score: bestLow.score,
+            note: "Title matches but year/author could not be corroborated — check before trusting.",
           },
         };
       }
     } catch (err) {
       errors.push(
-        `OpenAlex: ${err instanceof Error ? err.message : String(err)}`,
+        `${source === "openalex" ? "OpenAlex" : "Semantic Scholar"}: ${err instanceof Error ? err.message : String(err)}`,
       );
-    }
-    try {
-      const s2 = await s2Search(titleGuess);
-      const best = bestMatch(titleGuess, s2);
-      if (best) {
-        return {
-          csl: keepId(best.item),
-          resolution: {
-            status: "verified",
-            source: "semanticscholar",
-            url: best.item.URL,
-            score: best.score,
-          },
-        };
-      }
-    } catch (err) {
-      errors.push(
-        `Semantic Scholar: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-    if (errors.length > 0) {
-      return {
-        csl: { id, type: "article", ...local },
-        resolution: {
-          status: "unverified",
-          note: `Search failed — ${errors.join("; ")}. Entry kept as parsed.`,
-        },
-      };
     }
   }
+
+  if (fallback) return fallback;
 
   return {
-    csl: { id, type: "article", ...local },
+    csl: asLocal(),
     resolution: {
       status: "unverified",
-      note: titleGuess
-        ? "No sufficiently similar title on OpenAlex or Semantic Scholar."
-        : "No title could be extracted to search with.",
+      note:
+        errors.length > 0
+          ? `Search failed — ${errors.join("; ")}. Entry kept as parsed.`
+          : "No sufficiently similar title on OpenAlex or Semantic Scholar.",
     },
   };
 }
 
-const MATCH_THRESHOLD = 0.75;
+/**
+ * Corroboration signals: true = agrees, false = contradicts, null = unknown.
+ */
+export function corroborate(
+  local: Partial<CslItem>,
+  rawText: string,
+  candidate: CslItem,
+): [yearOk: boolean | null, authorOk: boolean | null] {
+  const localYear = local.issued?.["date-parts"]?.[0]?.[0];
+  const candYear = candidate.issued?.["date-parts"]?.[0]?.[0];
+  const yearOk =
+    localYear && candYear ? Math.abs(localYear - candYear) <= 1 : null;
 
-function bestMatch(
-  query: string,
-  candidates: CslItem[],
-): { item: CslItem; score: number } | null {
-  let best: { item: CslItem; score: number } | null = null;
-  for (const item of candidates) {
-    if (!item.title) continue;
-    const score = titleSimilarity(query, item.title);
-    if (score >= MATCH_THRESHOLD && (best === null || score > best.score))
-      best = { item, score };
-  }
-  return best;
+  const fam =
+    candidate.author?.[0]?.family ??
+    candidate.author?.[0]?.literal?.split(/\s+/).at(-1);
+  const authorOk =
+    fam && fam.length > 2
+      ? rawText.toLowerCase().includes(fam.toLowerCase())
+      : null;
+
+  return [yearOk, authorOk];
+}
+
+/**
+ * Crossref-style verdict: contradiction → low-confidence; corroboration →
+ * verified; no signals either way → verified only on a near-perfect title.
+ */
+export function classifyMatch(
+  score: number,
+  yearOk: boolean | null,
+  authorOk: boolean | null,
+): "verified" | "low-confidence" | "rejected" {
+  if (score < MATCH_THRESHOLD) return "rejected";
+  if (yearOk === false || authorOk === false) return "low-confidence";
+  if (yearOk === true || authorOk === true) return "verified";
+  return score >= 0.9 ? "verified" : "low-confidence";
 }
 
 /**

@@ -52,8 +52,11 @@ const MAX_ATTEMPTS = 3;
 export async function cachedFetchJson(
   url: string,
   headers: Record<string, string> = {},
+  post?: { body: unknown },
 ): Promise<unknown> {
-  const key = createHash("sha1").update(url).digest("hex");
+  const key = createHash("sha1")
+    .update(url + (post ? JSON.stringify(post.body) : ""))
+    .digest("hex");
   const file = path.join(CACHE_DIR, `${key}.json`);
 
   try {
@@ -72,7 +75,14 @@ export async function cachedFetchJson(
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       let res: Response;
       try {
-        res = await fetch(url, { headers, cache: "no-store" });
+        res = await fetch(url, {
+          headers: post
+            ? { ...headers, "Content-Type": "application/json" }
+            : headers,
+          method: post ? "POST" : "GET",
+          body: post ? JSON.stringify(post.body) : undefined,
+          cache: "no-store",
+        });
       } catch (err) {
         throw new SourceError(
           host,

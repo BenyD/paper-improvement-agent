@@ -22,6 +22,34 @@ function headers(): Record<string, string> {
 
 // Rate limiting and retry live centrally in cachedFetchJson (per-host queues).
 
+/**
+ * Batch lookup via POST /paper/batch (up to 500 ids per request — one call
+ * for a whole reference list instead of N dice-rolls against the shared
+ * unauthenticated rate limit). Ids like "arXiv:1607.06450" or "DOI:10...".
+ * Returns a map keyed by the input id; misses are absent, not fabricated.
+ */
+export async function s2Batch(ids: string[]): Promise<Map<string, CslItem>> {
+  const out = new Map<string, CslItem>();
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    try {
+      const res = (await cachedFetchJson(
+        `${BASE}/paper/batch?fields=${FIELDS}`,
+        headers(),
+        {
+          body: { ids: chunk },
+        },
+      )) as (S2Paper | null)[];
+      res.forEach((paper, j) => {
+        if (paper) out.set(chunk[j], toCsl(paper));
+      });
+    } catch {
+      // chunk failed — entries fall through to other resolution paths
+    }
+  }
+  return out;
+}
+
 export async function s2ByArxiv(arxivId: string): Promise<CslItem | null> {
   try {
     const paper = (await cachedFetchJson(

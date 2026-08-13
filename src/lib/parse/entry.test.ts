@@ -40,4 +40,18 @@ describe("extractEntryFields", () => {
     const { titleGuess } = extractEntryFields("??? 12345 !!!");
     expect(titleGuess).toBeNull();
   });
+
+  it("extracts pre-2017 CoRR-style arXiv ids (abs/...)", () => {
+    const { csl } = extractEntryFields(
+      "Dzmitry Bahdanau, Kyunghyun Cho. Neural machine translation. CoRR, abs/1409.0473, 2014.",
+    );
+    expect(csl.custom?.arxiv).toBe("1409.0473");
+  });
+
+  it("keeps surname particles with the family name", () => {
+    const { csl } = extractEntryFields(
+      "Laurens van der Maaten and Geoffrey Hinton. Visualizing data using t-SNE. JMLR, 2008.",
+    );
+    expect((csl.author ?? []).map((a) => a.family)).toContain("van der Maaten");
+  });
 });

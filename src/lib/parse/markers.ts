@@ -38,9 +38,9 @@ const BRACKET_RE = /\[(\d{1,3}(?:\s*[,–-]\s*\d{1,3})*)\]/g;
 const SUP_RE = /⟦\^([\d\s,;–-]+)⟧/g;
 // (Smith, 2020) / (Smith et al., 2020; Jones and Lee, 2019) / (Smith 2020)
 const PAREN_AY_RE = /\(([^()]{2,120}?(?:19|20)\d{2}[a-z]?(?:[^()]{0,80})?)\)/g;
-// Narrative: Smith et al. (2020), Smith and Jones (2019)
+// Narrative: Smith et al. (2020), Smith and Jones (2019), Smith & Jones (2019)
 const NARRATIVE_AY_RE =
-  /\b([A-Z][\p{L}'’-]+)(?:\s+et al\.?|\s+and\s+[A-Z][\p{L}'’-]+)?\s+\(((?:19|20)\d{2}[a-z]?)\)/gu;
+  /\b([A-Z][\p{L}'’-]+)(?:\s+et al\.?|\s+(?:and|&)\s+[A-Z][\p{L}'’-]+)?\s+\(((?:19|20)\d{2}[a-z]?)\)/gu;
 
 /**
  * P6 — Detect the paper's citation style and link in-text markers to entries.
@@ -228,8 +228,12 @@ function authorYearMarker(
     const surname = cite.match(/^[A-Z][\p{L}'’-]+/u)?.[0];
     if (!year || !surname) continue;
     anyLooksLikeCite = true;
-    const ref = findByAuthorYear(refs, surname, year);
-    if (ref) targets.push(ref.id);
+    const hit = findByAuthorYear(refs, surname, year);
+    if (hit && "ref" in hit) targets.push(hit.ref.id);
+    else if (hit && "ambiguous" in hit)
+      unresolved.push(
+        `${cite} — ambiguous, matches ${hit.ambiguous.length} entries`,
+      );
     else unresolved.push(cite);
   }
 
@@ -254,35 +258,64 @@ function narrativeMarker(
 ): InTextMarker | null {
   const surname = m[1];
   const year = m[2];
-  const ref = findByAuthorYear(refs, surname, year);
+  const hit = findByAuthorYear(refs, surname, year);
+  const linked = hit && "ref" in hit ? hit.ref : null;
   return {
     id,
     sectionId,
     paragraph,
     offset: [m.index ?? 0, (m.index ?? 0) + m[0].length],
     raw: m[0],
-    targets: ref ? [ref.id] : [],
-    unresolved: ref ? [] : [`${surname} (${year})`],
+    targets: linked ? [linked.id] : [],
+    unresolved: linked
+      ? []
+      : [
+          hit && "ambiguous" in hit
+            ? `${surname} (${year}) — ambiguous, matches ${hit.ambiguous.length} entries`
+            : `${surname} (${year})`,
+        ],
   };
 }
 
+type AuthorYearHit =
+  | { ref: RefForLinking }
+  | { ambiguous: RefForLinking[] }
+  | null;
+
+/**
+ * Match surname + year against the reference list. A "2020a"-style letter
+ * suffix disambiguates via the raw entry text when possible. Multiple
+ * remaining candidates are AMBIGUOUS — reported, never guessed at: a silently
+ * wrong link is exactly the citation corruption this app must never produce.
+ */
 function findByAuthorYear(
   refs: RefForLinking[],
   surname: string,
   year: string,
-): RefForLinking | null {
+): AuthorYearHit {
+  const letter = year.match(/[a-z]$/)?.[0];
   const yearNum = Number(year.replace(/[a-z]$/, ""));
   const lower = surname.toLowerCase();
-  for (const ref of refs) {
+
+  const candidates = refs.filter((ref) => {
     const refYear = ref.csl.issued?.["date-parts"]?.[0]?.[0];
-    if (refYear !== yearNum) continue;
+    if (refYear !== yearNum) return false;
     const inAuthors = (ref.csl.author ?? []).some(
       (a) =>
         a.family?.toLowerCase() === lower ||
         a.literal?.toLowerCase().includes(lower),
     );
-    if (inAuthors || ref.rawText.slice(0, 120).toLowerCase().includes(lower))
-      return ref;
+    return inAuthors || ref.rawText.slice(0, 120).toLowerCase().includes(lower);
+  });
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return { ref: candidates[0] };
+
+  if (letter) {
+    const suffixed = candidates.filter((ref) =>
+      ref.rawText.includes(`${yearNum}${letter}`),
+    );
+    if (suffixed.length === 1) return { ref: suffixed[0] };
   }
-  return null;
+  return { ambiguous: candidates };
 }

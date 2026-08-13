@@ -1,6 +1,67 @@
 import { describe, expect, it } from "vitest";
 import { reconstructAbstract } from "./openalex";
-import { titleSimilarity } from "./resolve";
+import { classifyMatch, corroborate, titleSimilarity } from "./resolve";
+
+describe("classifyMatch (Crossref-style validation)", () => {
+  it("verifies on title match + corroborating year", () => {
+    expect(classifyMatch(0.8, true, null)).toBe("verified");
+  });
+
+  it("demotes to low-confidence on a contradicting year — no false green badge", () => {
+    expect(classifyMatch(0.95, false, true)).toBe("low-confidence");
+  });
+
+  it("demotes to low-confidence on a contradicting author", () => {
+    expect(classifyMatch(0.9, true, false)).toBe("low-confidence");
+  });
+
+  it("without any corroboration, only near-perfect titles verify", () => {
+    expect(classifyMatch(0.95, null, null)).toBe("verified");
+    expect(classifyMatch(0.78, null, null)).toBe("low-confidence");
+  });
+
+  it("rejects below the similarity threshold", () => {
+    expect(classifyMatch(0.5, true, true)).toBe("rejected");
+  });
+});
+
+describe("corroborate", () => {
+  const rawText =
+    "Ashish Vaswani, Noam Shazeer. Attention is all you need. NeurIPS, 2017.";
+
+  it("checks year within ±1 and first-author surname in the raw text", () => {
+    const [yearOk, authorOk] = corroborate(
+      { issued: { "date-parts": [[2017]] } },
+      rawText,
+      {
+        id: "x",
+        type: "article",
+        author: [{ family: "Vaswani", given: "A." }],
+        issued: { "date-parts": [[2017]] },
+      },
+    );
+    expect(yearOk).toBe(true);
+    expect(authorOk).toBe(true);
+  });
+
+  it("flags a wrong candidate author as a contradiction", () => {
+    const [, authorOk] = corroborate({}, rawText, {
+      id: "x",
+      type: "article",
+      author: [{ family: "Hochreiter" }],
+    });
+    expect(authorOk).toBe(false);
+  });
+
+  it("returns null (unknown) when data to compare is missing", () => {
+    const [yearOk, authorOk] = corroborate({}, rawText, {
+      id: "x",
+      type: "article",
+    });
+    expect(yearOk).toBeNull();
+    expect(authorOk).toBeNull();
+  });
+});
 
 describe("titleSimilarity", () => {
   it("matches identical titles regardless of case and punctuation", () => {
