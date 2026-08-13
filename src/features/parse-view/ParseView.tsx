@@ -19,25 +19,9 @@ function renderParagraph(text: string) {
   );
 }
 
-export function ParseView({
-  doc,
-  children,
-}: {
-  doc: PaperDocument;
-  children?: React.ReactNode;
-}) {
+export function ParseView({ doc }: { doc: PaperDocument }) {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {doc.meta.filename}, {doc.meta.pageCount} pages, {doc.meta.layout}
-          {doc.meta.year && `, ${doc.meta.year}`}
-        </p>
-        <h1 className="text-balance text-2xl font-semibold leading-snug tracking-tight">
-          {doc.title || "(no title detected)"}
-        </h1>
-      </header>
-
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-6 sm:px-8">
       <FailuresPanel failures={doc.failures} />
 
       {doc.abstract !== "" && (
@@ -91,8 +75,6 @@ export function ParseView({
       </section>
 
       <CitationsTable doc={doc} />
-
-      {children}
 
       <section aria-labelledby="raw-refs-heading">
         <h2
