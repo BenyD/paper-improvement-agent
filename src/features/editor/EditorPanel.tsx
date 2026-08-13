@@ -179,8 +179,8 @@ export function EditorPanel({
             <p className="text-sm font-medium">{proposal.summary}</p>
             <p className="text-xs text-muted-foreground">
               {proposal.ops.length} operation
-              {proposal.ops.length === 1 ? "" : "s"} · validated: no citations
-              lost · model {proposal.model}
+              {proposal.ops.length === 1 ? "" : "s"}, validated (no citations
+              lost). Model: {proposal.model}
             </p>
           </CardHeader>
           <Separator />
@@ -223,7 +223,7 @@ export function EditorPanel({
                   {p.status}
                 </Badge>
                 <span className="font-medium">"{p.command}"</span>
-                <span className="text-muted-foreground"> — {p.summary}</span>
+                <span className="text-muted-foreground">: {p.summary}</span>
               </li>
             ))}
           </ul>

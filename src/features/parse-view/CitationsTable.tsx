@@ -78,15 +78,15 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
         id="citations-heading"
         className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
       >
-        Citations · {entries.length} references, {verified} verified ·{" "}
+        Citations: {entries.length} references ({verified} verified),{" "}
         {markers.length} in-text markers
       </h2>
       <p className="mb-3 text-xs text-muted-foreground">
-        List style: <span className="font-mono">{entryStyle ?? "unknown"}</span>{" "}
-        · Citation style: <span className="font-mono">{citationStyle}</span>
+        List style <span className="font-mono">{entryStyle ?? "unknown"}</span>,
+        citation style <span className="font-mono">{citationStyle}</span>
         {orphans.length > 0 && (
           <span className="ml-2 text-amber-600 dark:text-amber-400">
-            · {orphans.length} orphan markers
+            ({orphans.length} orphan markers)
           </span>
         )}
       </p>

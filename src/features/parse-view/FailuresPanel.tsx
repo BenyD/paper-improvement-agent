@@ -9,8 +9,8 @@ export function FailuresPanel({ failures }: { failures: Failure[] }) {
     <Alert>
       <TriangleAlert aria-hidden />
       <AlertTitle>
-        {failures.length} parsing {failures.length === 1 ? "issue" : "issues"} —
-        surfaced, not hidden
+        {failures.length} parsing {failures.length === 1 ? "issue" : "issues"}{" "}
+        (surfaced, not hidden)
       </AlertTitle>
       <AlertDescription>
         <ul className="flex flex-col gap-1.5">

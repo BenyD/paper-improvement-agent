@@ -12,9 +12,9 @@ export function ExportPanel({ doc }: { doc: PaperDocument }) {
         Export
       </h2>
       <p className="mb-3 text-sm text-muted-foreground">
-        Rebuilds the paper as LaTeX — structure, approved edits, and all{" "}
-        {doc.citations.entries.length} references survive the round trip; the
-        bibliography is rendered through CSL (citeproc), not string templates.
+        Rebuilds the paper as LaTeX. Structure, approved edits, and all{" "}
+        {doc.citations.entries.length} references survive the round trip, with
+        the bibliography rendered through CSL (citeproc), not string templates.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button

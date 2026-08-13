@@ -81,8 +81,8 @@ export function UploadDropzone() {
             />
             <span className="text-lg font-medium">Parsing {state.name}…</span>
             <span className="text-sm text-muted-foreground">
-              Extracting structure, linking citations, verifying references
-              against OpenAlex &amp; Semantic Scholar — about 30 seconds
+              Extracting structure, linking citations, and verifying references
+              against OpenAlex and Semantic Scholar. Takes about 30 seconds.
             </span>
           </>
         ) : (
@@ -90,7 +90,7 @@ export function UploadDropzone() {
             <UploadCloud className="size-8 text-muted-foreground" aria-hidden />
             <span className="text-lg font-medium">Drop your paper here</span>
             <span className="text-sm text-muted-foreground">
-              or click to browse · PDF up to 50 MB · arXiv papers work great
+              or click to browse. PDF up to 50 MB, arXiv papers work best.
             </span>
           </>
         )}

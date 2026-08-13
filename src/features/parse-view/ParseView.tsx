@@ -30,8 +30,8 @@ export function ParseView({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {doc.meta.filename} · {doc.meta.pageCount} pages · {doc.meta.layout}
-          {doc.meta.year && ` · ${doc.meta.year}`}
+          {doc.meta.filename}, {doc.meta.pageCount} pages, {doc.meta.layout}
+          {doc.meta.year && `, ${doc.meta.year}`}
         </p>
         <h1 className="text-balance text-2xl font-semibold leading-snug tracking-tight">
           {doc.title || "(no title detected)"}
@@ -56,7 +56,7 @@ export function ParseView({
           id="structure-heading"
           className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
         >
-          Structure · {doc.sections.length} sections
+          Structure ({doc.sections.length} sections)
         </h2>
         <ul className="flex flex-col gap-1">
           {doc.sections.map((section) => (
@@ -99,8 +99,8 @@ export function ParseView({
           id="raw-refs-heading"
           className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
         >
-          Raw reference region{" "}
-          {doc.references.heading && `· "${doc.references.heading}"`} · page{" "}
+          Raw reference region
+          {doc.references.heading && ` "${doc.references.heading}"`}, page{" "}
           {doc.references.startPage}
         </h2>
         {doc.references.rawLines.length === 0 ? (
@@ -112,7 +112,7 @@ export function ParseView({
             <summary className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {doc.references.rawLines.length} raw lines
               <span className="ml-2 text-xs font-normal text-muted-foreground">
-                as extracted, before segmentation
+                (as extracted, before segmentation)
               </span>
             </summary>
             <Separator />

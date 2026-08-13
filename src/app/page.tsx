@@ -15,9 +15,10 @@ export default async function Home() {
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           Paper Improvement Agent
         </h1>
-        <p className="max-w-md text-balance text-muted-foreground">
-          Upload your paper, see how it parses, get a peer review grounded in
-          real academic search, and improve it without losing a citation.
+        <p className="max-w-xl text-balance text-muted-foreground">
+          Upload your paper and see exactly how it parses. Get a peer review
+          grounded in real academic search, then improve it without losing a
+          citation.
         </p>
       </div>
 
@@ -42,7 +43,7 @@ export default async function Home() {
                     {p.title}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {p.referenceCount} refs ·{" "}
+                    {p.referenceCount} refs,{" "}
                     <time dateTime={p.uploadedAt}>
                       {new Date(p.uploadedAt).toLocaleDateString()}
                     </time>

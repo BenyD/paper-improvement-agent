@@ -130,17 +130,17 @@ export function ReviewPanel({
         <div className="mt-2 flex flex-col gap-6">
           {result && (
             <p className="text-xs text-muted-foreground">
-              {result.stats.sectionsScanned} sections scanned ·{" "}
-              {result.stats.queriesRun} searches ·{" "}
-              {result.stats.candidatesConsidered} candidates considered ·{" "}
+              {result.stats.sectionsScanned} sections scanned,{" "}
+              {result.stats.queriesRun} searches,{" "}
+              {result.stats.candidatesConsidered} candidates considered.{" "}
               {result.stats.claimsChecked} claims checked against{" "}
               {result.stats.entriesChecked} abstracts (
               {result.stats.claimsSupported} supported
               {result.stats.mismatchesWithdrawn > 0 &&
                 `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
               {result.stats.skippedNoAbstract > 0 &&
-                `, ${result.stats.skippedNoAbstract} entries skipped — no abstract`}
-              ) · model {result.model}
+                `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
+              ). Model: {result.model}
             </p>
           )}
 
@@ -158,7 +158,7 @@ export function ReviewPanel({
           {result && result.notes.length > 0 && (
             <details className="rounded-lg border border-border">
               <summary className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Process notes ({result.notes.length}) — skips, empty searches,
+                Process notes ({result.notes.length}): skips, empty searches,
                 errors
               </summary>
               <Separator />
