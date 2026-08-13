@@ -7,6 +7,7 @@ import {
   FileText,
   FileType,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,13 +15,18 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { PaperDocument } from "@/lib/doc/types";
 
-/** One export button, formats in a menu. Bibliography rendered via CSL. */
+/** One export button, formats in a menu. Bibliography rendered via CSL;
+ *  the detected style is the default, with an explicit CSL style pick. */
 export function ExportActions({ doc }: { doc: PaperDocument }) {
+  const [style, setStyle] = useState("detected");
+  const styleQuery = style === "detected" ? "" : `&style=${style}`;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -41,7 +47,10 @@ export function ExportActions({ doc }: { doc: PaperDocument }) {
         <DropdownMenuItem
           className="items-start"
           render={
-            <a href={`/api/papers/${doc.id}/export?format=tex`} download />
+            <a
+              href={`/api/papers/${doc.id}/export?format=tex${styleQuery}`}
+              download
+            />
           }
         >
           <FileCode className="mt-0.5" aria-hidden />
@@ -69,7 +78,10 @@ export function ExportActions({ doc }: { doc: PaperDocument }) {
         <DropdownMenuItem
           className="items-start"
           render={
-            <a href={`/api/papers/${doc.id}/export?format=md`} download />
+            <a
+              href={`/api/papers/${doc.id}/export?format=md${styleQuery}`}
+              download
+            />
           }
         >
           <FileType className="mt-0.5" aria-hidden />
@@ -80,6 +92,24 @@ export function ExportActions({ doc }: { doc: PaperDocument }) {
             </span>
           </div>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Citation style</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={style} onValueChange={setStyle}>
+            <DropdownMenuRadioItem value="detected" closeOnClick={false}>
+              Detected (default)
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="apa" closeOnClick={false}>
+              APA
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="vancouver" closeOnClick={false}>
+              Vancouver
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="harvard1" closeOnClick={false}>
+              Harvard
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

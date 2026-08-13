@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // The stored PDF is embedded by our own source-preview pane; keep
+        // third-party framing blocked but allow same-origin.
+        source: "/api/papers/:id/pdf",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
     ];
   },
 };

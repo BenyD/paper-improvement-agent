@@ -1,4 +1,4 @@
-import { templateForStyle } from "../csl/render";
+import { type CslTemplate, templateForStyle } from "../csl/render";
 import type { PaperDocument } from "../doc/types";
 import { formatEntry } from "./latex";
 
@@ -8,7 +8,10 @@ import { formatEntry } from "./latex";
  * tables, citation markers stay inline as plain text, and the reference
  * list renders through citeproc (same formatter the LaTeX export uses).
  */
-export function exportMarkdown(doc: PaperDocument): string {
+export function exportMarkdown(
+  doc: PaperDocument,
+  styleOverride?: CslTemplate,
+): string {
   const lines: string[] = [`# ${doc.title || "(untitled paper)"}`, ""];
 
   if (doc.abstract) {
@@ -25,7 +28,8 @@ export function exportMarkdown(doc: PaperDocument): string {
 
   const entries = doc.citations.entries;
   if (entries.length > 0) {
-    const template = templateForStyle(doc.citations.citationStyle);
+    const template =
+      styleOverride ?? templateForStyle(doc.citations.citationStyle);
     lines.push("## References", "");
     for (const entry of entries) {
       const label = entry.marker ? `[${entry.marker}]` : "-";

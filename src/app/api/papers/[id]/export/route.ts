@@ -14,7 +14,16 @@ export async function GET(
   if (!doc)
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
 
-  const format = new URL(req.url).searchParams.get("format") ?? "tex";
+  const search = new URL(req.url).searchParams;
+  const format = search.get("format") ?? "tex";
+  // Optional CSL style override; the detected style is the default.
+  const styleParam = search.get("style");
+  const style =
+    styleParam === "apa" ||
+    styleParam === "vancouver" ||
+    styleParam === "harvard1"
+      ? styleParam
+      : undefined;
   const base = (doc.title || "paper")
     .replace(/[^\p{L}\p{N}]+/gu, "-")
     .slice(0, 60);
@@ -28,7 +37,7 @@ export async function GET(
     });
   }
   if (format === "tex") {
-    return new Response(exportLatex(doc), {
+    return new Response(exportLatex(doc, style), {
       headers: {
         "Content-Type": "application/x-tex; charset=utf-8",
         "Content-Disposition": `attachment; filename="${base}.tex"`,
@@ -36,7 +45,7 @@ export async function GET(
     });
   }
   if (format === "md") {
-    return new Response(exportMarkdown(doc), {
+    return new Response(exportMarkdown(doc, style), {
       headers: {
         "Content-Type": "text/markdown; charset=utf-8",
         "Content-Disposition": `attachment; filename="${base}.md"`,

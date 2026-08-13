@@ -8,10 +8,10 @@ import {
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ExportActions } from "@/features/export/ExportActions";
 import type { PaperDocument } from "@/lib/doc/types";
 import { isMarkdownTable } from "@/lib/parse/tables";
 import { CitationsTable } from "./CitationsTable";
+import { HeaderActions } from "./HeaderActions";
 import { InlineIssues, issuesFor } from "./InlineIssues";
 import { StructureToggle } from "./StructureToggle";
 
@@ -96,7 +96,7 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
   return (
     <div className="flex w-full flex-col gap-8 px-4 py-6 sm:px-8 lg:px-10">
       <header className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/"
             className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -104,7 +104,7 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
             <ArrowLeft className="size-4" aria-hidden />
             All papers
           </Link>
-          <ExportActions doc={doc} />
+          <HeaderActions doc={doc} />
         </div>
         <div className="flex flex-col gap-1.5">
           <h1 className="text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
