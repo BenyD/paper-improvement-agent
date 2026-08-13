@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   BookMarked,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   CircleAlert,
   CircleHelp,
@@ -114,6 +115,7 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
   ).length;
   const orphans = markers.filter((m) => m.unresolved.length > 0);
   const citedIds = new Set(markers.flatMap((m) => m.targets));
+  const uncitedEntries = entries.filter((e) => !citedIds.has(e.id));
 
   return (
     <section aria-labelledby="citations-heading">
@@ -153,7 +155,43 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
           </Badge>
         </div>
       </div>
-      <InlineIssues failures={issuesFor(doc.failures, "citations")} />
+      {/* The uncited banner renders from live table data (titles, not entry
+          numbers), so the stored parse-time failure string is filtered out. */}
+      <InlineIssues
+        failures={issuesFor(doc.failures, "citations").filter(
+          (f) => f.code !== "uncited-references",
+        )}
+      />
+      {uncitedEntries.length > 0 && markers.length > 0 && (
+        <details className="group mb-3 rounded-lg bg-(--warning)/10 text-sm">
+          <summary className="flex cursor-pointer select-none list-none items-start gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
+            <CircleAlert
+              className="mt-0.5 size-3.5 shrink-0 text-(--warning)"
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1">
+              {uncitedEntries.length} reference
+              {uncitedEntries.length === 1 ? " entry is" : " entries are"} never
+              cited in the text.
+            </span>
+            <ChevronRight
+              className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+              aria-hidden
+            />
+          </summary>
+          <ul className="flex flex-col gap-1 px-3 pb-2.5 pl-[2.375rem]">
+            {uncitedEntries.map((entry, i) => (
+              <li key={entry.id} className="text-xs text-muted-foreground">
+                <span className="font-mono">[{entry.marker ?? i + 1}]</span>{" "}
+                {entry.csl.title ?? entry.rawText.slice(0, 90)}
+                {entry.csl.issued?.["date-parts"]?.[0]?.[0]
+                  ? ` (${entry.csl.issued["date-parts"][0][0]})`
+                  : ""}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {entries.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-10 text-center">
           <BookMarked className="size-5 text-muted-foreground" aria-hidden />
