@@ -2,7 +2,7 @@
 
 Upload a research paper PDF, get a peer review grounded in real academic search (Semantic Scholar + OpenAlex), and improve the paper with natural-language editing commands — without ever losing a citation.
 
-Built for the AnswerThis founding engineer assessment ([brief](docs/AnswerThis-Founding-Engineer-Assessment%20(2).pdf)).
+Built for the AnswerThis founding engineer assessment.
 
 ## Run it
 
