@@ -51,9 +51,11 @@ function threadFromHistory(proposals: EditProposal[]): ChatItem[] {
 export function EditorPanel({
   doc,
   pastProposals,
+  draftCommand,
 }: {
   doc: PaperDocument;
   pastProposals: EditProposal[];
+  draftCommand?: string | null;
 }) {
   const router = useRouter();
   const [thread, setThread] = useState<ChatItem[]>(() =>
@@ -67,6 +69,11 @@ export function EditorPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [thread]);
+
+  // A review finding's "Fix in editor" prefills the composer for approval.
+  useEffect(() => {
+    if (draftCommand) setCommand(draftCommand);
+  }, [draftCommand]);
 
   const send = async () => {
     const text = command.trim();

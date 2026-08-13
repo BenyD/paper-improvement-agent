@@ -1,8 +1,18 @@
-import { ExternalLink, Gauge, TriangleAlert } from "lucide-react";
+import { ExternalLink, Gauge, PenLine, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Finding } from "@/lib/agent/review/types";
 import { cn } from "@/lib/utils";
+
+/** Turn a finding into a ready-to-send editing instruction (≤500 chars). */
+export function fixCommandFor(finding: Finding): string {
+  const base =
+    finding.kind === "claim-mismatch"
+      ? `Fix this citation issue: ${finding.summary}. The cited source ("${finding.source.title}") does not fully support the claim - adjust the claim to match what the source shows, or find and cite a source that supports it.`
+      : `Add a citation to "${finding.source.title}" where relevant: ${finding.summary}`;
+  return base.slice(0, 490);
+}
 
 const SEVERITY_STYLES: Record<Finding["severity"], string> = {
   high: "border-red-300 dark:border-red-900",
@@ -24,7 +34,13 @@ const CONFIDENCE_BADGE: Record<Finding["confidence"], string> = {
   low: "bg-muted text-muted-foreground",
 };
 
-export function FindingCard({ finding }: { finding: Finding }) {
+export function FindingCard({
+  finding,
+  onFix,
+}: {
+  finding: Finding;
+  onFix?: (command: string) => void;
+}) {
   return (
     <Card className={cn("py-4", SEVERITY_STYLES[finding.severity])}>
       <CardContent className="px-4">
@@ -44,18 +60,33 @@ export function FindingCard({ finding }: { finding: Finding }) {
           href={finding.source.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-flex items-start gap-1.5 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-3 inline-block text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span>
-            {finding.source.title}
-            {finding.source.year ? ` (${finding.source.year})` : ""}
-            {finding.source.authors ? `, by ${finding.source.authors}` : ""}
-          </span>
-          <ExternalLink
-            className="mt-1 size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
+          {finding.source.title}
+          {finding.source.year ? ` (${finding.source.year})` : ""}
+          {finding.source.authors ? `, by ${finding.source.authors}` : ""}
         </a>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {onFix && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => onFix(fixCommandFor(finding))}
+            >
+              <PenLine aria-hidden /> Fix in editor
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="xs"
+            nativeButton={false}
+            render={
+              <a href={finding.source.url} target="_blank" rel="noreferrer" />
+            }
+          >
+            <ExternalLink aria-hidden /> View source
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

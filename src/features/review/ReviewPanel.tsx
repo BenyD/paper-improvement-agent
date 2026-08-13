@@ -24,9 +24,11 @@ type Phase = "idle" | "running" | "done" | "error";
 export function ReviewPanel({
   paperId,
   initialReview,
+  onFix,
 }: {
   paperId: string;
   initialReview: ReviewResult | null;
+  onFix?: (command: string) => void;
 }) {
   const [phase, setPhase] = useState<Phase>(initialReview ? "done" : "idle");
   const [findings, setFindings] = useState<Finding[]>(
@@ -106,6 +108,8 @@ export function ReviewPanel({
 
   const mismatches = findings.filter((f) => f.kind === "claim-mismatch");
   const missing = findings.filter((f) => f.kind === "missing-work");
+  const rateLimitedCount =
+    result?.notes.filter((n) => /rate.?limit|429/i.test(n)).length ?? 0;
 
   return (
     <section aria-label="Peer review">
@@ -182,6 +186,16 @@ export function ReviewPanel({
               from the saved checkpoint without re-checking finished work.
             </p>
           )}
+          {result && rateLimitedCount >= 4 && phase !== "running" && (
+            <p className="flex items-start gap-2 rounded-lg bg-(--warning)/10 px-3 py-2 text-xs leading-relaxed text-(--warning)">
+              <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>
+                {rateLimitedCount} literature searches were rate-limited by the
+                academic APIs, so missing-work coverage is partial. Running
+                again later fills the gap; claim checks were unaffected.
+              </span>
+            </p>
+          )}
           {result && (
             <p className="flex items-start gap-2 rounded-lg bg-(--info)/10 px-3 py-2 text-xs leading-relaxed text-(--info)">
               <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
@@ -205,11 +219,13 @@ export function ReviewPanel({
             title={`Claim-citation mismatches (${mismatches.length})`}
             findings={mismatches}
             empty="Every checked claim was supported by its cited source."
+            onFix={onFix}
           />
           <FindingGroup
             title={`Possibly missing citations (${missing.length})`}
             findings={missing}
             empty="No missing work found beyond the existing references."
+            onFix={onFix}
           />
 
           {result && result.notes.length > 0 && (
@@ -288,10 +304,12 @@ function FindingGroup({
   title,
   findings,
   empty,
+  onFix,
 }: {
   title: string;
   findings: Finding[];
   empty: string;
+  onFix?: (command: string) => void;
 }) {
   return (
     <div>
@@ -308,7 +326,7 @@ function FindingGroup({
         <ul className="flex flex-col gap-3">
           {findings.map((f) => (
             <li key={f.id}>
-              <FindingCard finding={f} />
+              <FindingCard finding={f} onFix={onFix} />
             </li>
           ))}
         </ul>

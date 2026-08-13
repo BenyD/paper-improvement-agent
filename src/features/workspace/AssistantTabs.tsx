@@ -1,6 +1,7 @@
 "use client";
 
 import { PenLine, ScanSearch } from "lucide-react";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditorPanel } from "@/features/editor/EditorPanel";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
@@ -18,8 +19,16 @@ export function AssistantTabs({
   review: ReviewResult | null;
   proposals: EditProposal[];
 }) {
+  // "Fix in editor" on a review finding jumps here: switch tab, prefill.
+  const [tab, setTab] = useState("review");
+  const [draftCommand, setDraftCommand] = useState<string | null>(null);
+
   return (
-    <Tabs defaultValue="review" className="flex h-full flex-col gap-0">
+    <Tabs
+      value={tab}
+      onValueChange={(v) => setTab(v as string)}
+      className="flex h-full flex-col gap-0"
+    >
       <div className="border-b border-border px-4 py-2">
         <TabsList className="w-full">
           <TabsTrigger value="review" className="flex-1">
@@ -34,10 +43,21 @@ export function AssistantTabs({
         value="review"
         className="relative flex-1 overflow-y-auto p-4"
       >
-        <ReviewPanel paperId={doc.id} initialReview={review} />
+        <ReviewPanel
+          paperId={doc.id}
+          initialReview={review}
+          onFix={(command) => {
+            setDraftCommand(command);
+            setTab("edit");
+          }}
+        />
       </TabsContent>
       <TabsContent value="edit" className="min-h-0 flex-1">
-        <EditorPanel doc={doc} pastProposals={proposals} />
+        <EditorPanel
+          doc={doc}
+          pastProposals={proposals}
+          draftCommand={draftCommand}
+        />
       </TabsContent>
     </Tabs>
   );
