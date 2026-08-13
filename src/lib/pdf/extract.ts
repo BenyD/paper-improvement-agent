@@ -38,6 +38,21 @@ export async function extractPdf(bytes: Uint8Array): Promise<PdfExtract> {
   const allLines: Line[] = [];
   const pages: PageInfo[] = [];
 
+  let docMeta: PdfExtract["docMeta"] = { title: null, year: null };
+  try {
+    const meta = await doc.getMetadata();
+    const info = meta.info as { Title?: string; CreationDate?: string };
+    const title = info.Title?.trim();
+    // "D:20170612..." → 2017
+    const year = Number(info.CreationDate?.match(/^D:(\d{4})/)?.[1]);
+    docMeta = {
+      title: title && title.length > 3 ? normalizeText(title) : null,
+      year: Number.isFinite(year) ? year : null,
+    };
+  } catch {
+    // metadata is a bonus signal, never a requirement
+  }
+
   for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
     try {
       const page = await doc.getPage(pageNum);
@@ -92,7 +107,7 @@ export async function extractPdf(bytes: Uint8Array): Promise<PdfExtract> {
     });
   }
 
-  return { lines: cleaned, pages, failures };
+  return { lines: cleaned, pages, docMeta, failures };
 }
 
 /** NFKC folds ligature glyphs (ﬁ→fi); soft hyphens are invisible junk. */

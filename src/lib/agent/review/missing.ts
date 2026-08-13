@@ -72,8 +72,11 @@ export function dedupeCandidates(
     .filter((t): t is string => Boolean(t));
 
   const out: CslItem[] = [];
+  const maxYear = doc.meta.year;
   for (const c of candidates) {
     if (!c.title) continue;
+    const y = c.issued?.["date-parts"]?.[0]?.[0];
+    if (maxYear && y && y > maxYear) continue; // cannot be "missing" from an older paper
     if (c.DOI && existingDois.has(c.DOI.toLowerCase())) continue;
     if (titleSimilarity(c.title, doc.title) >= 0.8) continue; // the paper itself
     if (
@@ -161,18 +164,19 @@ export async function judgeCandidates(
 /** Search both APIs; failures come back as notes, never invented results. */
 export async function searchCandidates(
   query: string,
+  maxYear?: number | null,
 ): Promise<{ items: CslItem[]; notes: string[] }> {
   const notes: string[] = [];
   const items: CslItem[] = [];
   try {
-    items.push(...(await openAlexSearch(query, 5)));
+    items.push(...(await openAlexSearch(query, 5, maxYear)));
   } catch (err) {
     notes.push(
       `OpenAlex search failed for "${query}": ${err instanceof Error ? err.message : String(err)}`,
     );
   }
   try {
-    items.push(...(await s2Search(query, 5)));
+    items.push(...(await s2Search(query, 5, maxYear)));
   } catch (err) {
     notes.push(
       `Semantic Scholar search failed for "${query}": ${err instanceof Error ? err.message : String(err)}`,

@@ -39,6 +39,13 @@ export async function parsePaper(
     };
   });
 
+  const paperYear = computePaperYear(
+    extract.docMeta.year,
+    entries
+      .map((e) => e.csl.issued?.["date-parts"]?.[0]?.[0])
+      .filter((y): y is number => Boolean(y)),
+  );
+
   const twoColumnPages = extract.pages.filter((p) => p.columns === 2).length;
   const layout =
     twoColumnPages > extract.pages.length / 2
@@ -72,8 +79,9 @@ export async function parsePaper(
       uploadedAt: new Date().toISOString(),
       pageCount: extract.pages.length,
       layout,
+      year: paperYear,
     },
-    title: structure.title,
+    title: structure.title || extract.docMeta.title || "",
     abstract: structure.abstract,
     sections,
     citations: {
@@ -95,6 +103,22 @@ export async function parsePaper(
       ...linked.failures,
     ],
   };
+}
+
+/**
+ * The paper's own publication year. References cannot postdate the paper, so
+ * the newest reference year is a solid lower bound; PDF CreationDate can lag
+ * (arXiv revisions are re-rendered years later), so references win when newer
+ * is claimed by metadata alone the other way.
+ */
+export function computePaperYear(
+  metaYear: number | null,
+  refYears: number[],
+): number | null {
+  const maxRef = refYears.length > 0 ? Math.max(...refYears) : null;
+  if (maxRef && metaYear)
+    return Math.max(maxRef, Math.min(metaYear, maxRef + 1));
+  return maxRef ?? metaYear;
 }
 
 /**

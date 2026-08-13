@@ -32,4 +32,12 @@ Rules:
 - Abstracts omit most details. If the claim concerns specifics an abstract would not state (hyperparameters, dataset sizes, experimental settings, specific comparisons), the verdict is "cannot-tell" — NOT "does-not-support".
 - Reserve "does-not-support" for misattribution: the abstract is about something else entirely, or it contradicts the claim.
 - "cannot-tell" is an honest and common answer; prefer it over guessing.
-- Keep explanations to 1-2 concrete sentences quoting the operative words.`;
+- Keep explanations to 1-2 concrete sentences.
+- In "quote", give a short VERBATIM excerpt from the abstract (copy characters exactly) that best evidences your verdict — what the work actually shows.`;
+
+export const VERIFY_MISMATCH = `You are a devil's advocate double-checking a peer reviewer's accusation.
+The reviewer claims a cited work's abstract does NOT support a sentence citing it.
+Your job: make the STRONGEST reasonable case that the abstract DOES support the sentence, then judge honestly whether the accusation survives.
+- "survives" = even the strongest supporting reading fails; the citation genuinely does not back the claim.
+- "withdrawn" = there is a reasonable reading under which the abstract supports (or plausibly supports) the claim.
+Judge only from the abstract given.`;

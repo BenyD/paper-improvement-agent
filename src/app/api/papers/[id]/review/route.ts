@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 /** SSE stream: progress + findings as they are produced, then `done`. */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -29,9 +29,13 @@ export async function GET(
   const stream = new ReadableStream({
     start(controller) {
       const emit = (ev: ReviewEvent) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
+        } catch {
+          // client disconnected mid-stream; runReview sees req.signal.aborted
+        }
       };
-      runReview(doc, emit)
+      runReview(doc, emit, req.signal)
         .then(async (result) => {
           await saveReview(id, result);
           controller.close();

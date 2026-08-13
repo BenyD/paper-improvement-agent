@@ -62,8 +62,13 @@ export async function s2ByArxiv(arxivId: string): Promise<CslItem | null> {
   }
 }
 
-export async function s2Search(query: string, limit = 5): Promise<CslItem[]> {
-  const url = `${BASE}/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=${FIELDS}`;
+export async function s2Search(
+  query: string,
+  limit = 5,
+  maxYear?: number | null,
+): Promise<CslItem[]> {
+  const yearParam = maxYear ? `&year=1900-${maxYear}` : "";
+  const url = `${BASE}/paper/search?query=${encodeURIComponent(query)}&limit=${limit}${yearParam}&fields=${FIELDS}`;
   const res = (await cachedFetchJson(url, headers())) as { data?: S2Paper[] };
   return (res.data ?? []).map(toCsl);
 }

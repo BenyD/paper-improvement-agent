@@ -101,6 +101,7 @@ describe("detectStructure", () => {
     const result = detectStructure({
       lines,
       pages: [{ width: 612, height: 792, columns: 1 }],
+      docMeta: { title: null, year: null },
       failures: [],
     });
 
@@ -122,6 +123,7 @@ describe("detectStructure", () => {
     const result = detectStructure({
       lines,
       pages: [{ width: 612, height: 792, columns: 1 }],
+      docMeta: { title: null, year: null },
       failures: [],
     });
     expect(result.abstract).toBe("");

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { PaperDocument, ReferenceEntry } from "@/lib/doc/types";
 import { structured } from "../client";
-import { CLAIM_CHECK } from "../instructions";
+import { CLAIM_CHECK, VERIFY_MISMATCH } from "../instructions";
 import { sentenceAt, stripSupTokens } from "./context";
 import type { Finding, ReviewStats } from "./types";
 
@@ -78,17 +78,40 @@ const VerdictSchema = z.object({
       ]),
       confidence: z.enum(["high", "medium", "low"]),
       explanation: z.string(),
+      /** Verbatim excerpt from the abstract evidencing the verdict. */
+      quote: z.string().optional(),
     }),
   ),
 });
 
+const VerifySchema = z.object({
+  verdict: z.enum(["survives", "withdrawn"]),
+  reason: z.string(),
+});
+
+/** Whitespace/case-insensitive containment — is the quote really verbatim? */
+export function quoteInText(quote: string, text: string): boolean {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  const q = norm(quote);
+  return q.length >= 10 && norm(text).includes(q);
+}
+
 export async function checkClaimsForEntry(
   entry: ReferenceEntry,
   claims: CitedClaim[],
-): Promise<{ findings: Finding[]; supported: number; checked: number }> {
+): Promise<{
+  findings: Finding[];
+  supported: number;
+  checked: number;
+  withdrawn: number;
+}> {
   const abstract = entry.csl.abstract;
   if (!abstract || claims.length === 0)
-    return { findings: [], supported: 0, checked: 0 };
+    return { findings: [], supported: 0, checked: 0, withdrawn: 0 };
 
   const user = [
     `Cited work: "${entry.csl.title ?? entry.rawText.slice(0, 100)}"`,
@@ -108,6 +131,7 @@ export async function checkClaimsForEntry(
 
   const findings: Finding[] = [];
   let supported = 0;
+  let withdrawn = 0;
 
   for (const a of result.assessments) {
     const claim = claims[a.claimIndex];
@@ -118,11 +142,41 @@ export async function checkClaimsForEntry(
     }
     if (a.verdict === "cannot-tell") continue; // counted, not alarmed
 
+    // Adversarial verification: a "does-not-support" accusation must survive
+    // the strongest opposing reading before it ships as a high-severity
+    // finding (DeepSciVerify-style escalation; kills judge false positives).
+    if (a.verdict === "does-not-support") {
+      const check = await structured({
+        system: VERIFY_MISMATCH,
+        user: [
+          `Abstract:\n${abstract.slice(0, 2500)}`,
+          "",
+          `Sentence citing this work: ${claim.sentence}`,
+          `Reviewer's accusation: ${a.explanation}`,
+        ].join("\n"),
+        toolName: "judge_accusation",
+        description:
+          "Decide whether the accusation survives the strongest opposing case.",
+        schema: VerifySchema,
+        maxTokens: 800,
+      });
+      if (check.verdict === "withdrawn") {
+        withdrawn++;
+        continue;
+      }
+    }
+
+    // Code-enforced evidence grounding: the quote must actually appear in the
+    // abstract, or the finding is demoted to low confidence.
+    const quoteValid = a.quote ? quoteInText(a.quote, abstract) : false;
+    const confidence = quoteValid ? a.confidence : "low";
+    const evidence = quoteValid ? `\n\nAbstract evidence: "${a.quote}"` : "";
+
     findings.push({
       id: randomUUID(),
       kind: "claim-mismatch",
       severity: a.verdict === "does-not-support" ? "high" : "medium",
-      confidence: a.confidence,
+      confidence,
       sectionId: claim.sectionId,
       markerId: claim.markerId,
       refId: entry.id,
@@ -130,7 +184,7 @@ export async function checkClaimsForEntry(
         a.verdict === "does-not-support"
           ? `Cited source does not support this claim`
           : `Claim overstates what the cited source shows`,
-      detail: `"${claim.sentence}"\n\n${a.explanation}`,
+      detail: `"${claim.sentence}"\n\n${a.explanation}${evidence}`,
       source: {
         title: entry.csl.title ?? entry.rawText.slice(0, 80),
         url: entry.resolution.url ?? entry.csl.URL ?? "",
@@ -143,7 +197,7 @@ export async function checkClaimsForEntry(
     });
   }
 
-  return { findings, supported, checked: result.assessments.length };
+  return { findings, supported, checked: result.assessments.length, withdrawn };
 }
 
 /** Entries eligible for claim checking: cited, verified, with an abstract. */
@@ -168,5 +222,6 @@ export function emptyStats(): ReviewStats {
     claimsChecked: 0,
     claimsSupported: 0,
     skippedNoAbstract: 0,
+    mismatchesWithdrawn: 0,
   };
 }

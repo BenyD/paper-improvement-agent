@@ -33,6 +33,8 @@ export interface ReviewStats {
   claimsChecked: number;
   claimsSupported: number;
   skippedNoAbstract: number;
+  /** High-severity accusations withdrawn by the adversarial verification pass. */
+  mismatchesWithdrawn: number;
 }
 
 export interface ReviewResult {

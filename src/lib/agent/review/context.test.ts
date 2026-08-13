@@ -50,3 +50,18 @@ describe("isMathNoise (from claims)", () => {
     ).toBe(false);
   });
 });
+
+describe("quoteInText (from claims)", () => {
+  it("accepts verbatim quotes ignoring case/punctuation, rejects fabricated ones", async () => {
+    const { quoteInText } = await import("./claims");
+    const abstract =
+      "We propose the Transformer, based solely on attention mechanisms.";
+    expect(quoteInText("based solely on attention mechanisms", abstract)).toBe(
+      true,
+    );
+    expect(quoteInText("recurrent networks are essential", abstract)).toBe(
+      false,
+    );
+    expect(quoteInText("solely", abstract)).toBe(false); // too short to count as evidence
+  });
+});

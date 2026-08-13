@@ -34,6 +34,7 @@ import type { ReviewEvent, ReviewResult } from "./types";
 export async function runReview(
   doc: PaperDocument,
   emit: (ev: ReviewEvent) => void,
+  signal?: AbortSignal,
 ): Promise<ReviewResult> {
   const result: ReviewResult = {
     id: randomUUID(),
@@ -71,6 +72,7 @@ export async function runReview(
     }
 
     for (const section of sections) {
+      if (signal?.aborted) break;
       const sectionQueries = bySection.get(section.sectionId) ?? [];
       if (sectionQueries.length === 0) continue;
       emit({
@@ -80,7 +82,7 @@ export async function runReview(
 
       const raw: Awaited<ReturnType<typeof searchCandidates>>["items"] = [];
       for (const query of sectionQueries) {
-        const { items, notes } = await searchCandidates(query);
+        const { items, notes } = await searchCandidates(query, doc.meta.year);
         raw.push(...items);
         result.notes.push(...notes);
       }
@@ -131,16 +133,16 @@ export async function runReview(
     let next = 0;
     const worker = async () => {
       while (next < entries.length) {
+        if (signal?.aborted) return;
         const entry = entries[next++];
         const entryClaims = claims.get(entry.id) ?? [];
         try {
-          const { findings, supported, checked } = await checkClaimsForEntry(
-            entry,
-            entryClaims,
-          );
+          const { findings, supported, checked, withdrawn } =
+            await checkClaimsForEntry(entry, entryClaims);
           result.stats.entriesChecked++;
           result.stats.claimsChecked += checked;
           result.stats.claimsSupported += supported;
+          result.stats.mismatchesWithdrawn += withdrawn;
           for (const f of findings) addFinding(f);
         } catch (err) {
           result.notes.push(
@@ -158,6 +160,8 @@ export async function runReview(
     emit({ type: "error", message });
   }
 
+  if (signal?.aborted)
+    result.notes.push("Review aborted by the client; results are partial.");
   result.finishedAt = new Date().toISOString();
   emit({ type: "done", result });
   return result;

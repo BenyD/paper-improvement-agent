@@ -36,6 +36,10 @@ export async function structured<S extends z.ZodType>(opts: {
   const res = await client().messages.create({
     model: modelId(),
     max_tokens: opts.maxTokens ?? 3000,
+    // NOTE: `temperature` is deprecated on Claude 5 models (API 400s on it),
+    // so judge determinism cannot come from temperature pinning. Verdict
+    // stability is provided instead by forced tool schemas and the
+    // adversarial verification pass on high-severity verdicts.
     system: opts.system,
     messages: [{ role: "user", content: opts.user }],
     tools: [

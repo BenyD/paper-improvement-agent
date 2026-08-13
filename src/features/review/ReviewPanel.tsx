@@ -115,6 +115,8 @@ export function ReviewPanel({
               {result.stats.claimsChecked} claims checked against{" "}
               {result.stats.entriesChecked} abstracts (
               {result.stats.claimsSupported} supported
+              {result.stats.mismatchesWithdrawn > 0 &&
+                `, ${result.stats.mismatchesWithdrawn} accusations withdrawn after adversarial re-check`}
               {result.stats.skippedNoAbstract > 0 &&
                 `, ${result.stats.skippedNoAbstract} entries skipped — no abstract`}
               ) · model {result.model}

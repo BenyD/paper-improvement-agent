@@ -27,6 +27,8 @@ export interface PaperDocument {
     pageCount: number;
     /** Layout observed by P1, e.g. "two-column" — context for the parse view. */
     layout: string;
+    /** Publication year (newest reference year, PDF metadata as tiebreak). */
+    year: number | null;
   };
   title: string;
   abstract: string;

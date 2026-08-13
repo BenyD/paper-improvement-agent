@@ -55,16 +55,23 @@ export async function openAlexByDois(
   return out;
 }
 
+// Trim responses to the fields toCsl reads — ~10x smaller payloads and cache.
+const SELECT =
+  "select=id,display_name,publication_year,doi,type,authorships,primary_location,biblio,abstract_inverted_index";
+
 export async function openAlexSearch(
   query: string,
   perPage = 5,
+  maxYear?: number | null,
 ): Promise<CslItem[]> {
   // OpenAlex 400s on some punctuation in search strings — keep letters/digits.
   const sanitized = query
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const url = `${BASE}/works?search=${encodeURIComponent(sanitized)}&per-page=${perPage}&${MAILTO}`;
+  // Deterministic recency guard: a paper cannot cite work newer than itself.
+  const yearFilter = maxYear ? `&filter=publication_year:<${maxYear + 1}` : "";
+  const url = `${BASE}/works?search=${encodeURIComponent(sanitized)}${yearFilter}&per-page=${perPage}&${SELECT}&${MAILTO}`;
   const res = (await cachedFetchJson(url)) as { results?: OpenAlexWork[] };
   return (res.results ?? []).map(toCsl);
 }

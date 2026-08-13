@@ -38,5 +38,7 @@ export interface PageInfo {
 export interface PdfExtract {
   lines: Line[];
   pages: PageInfo[];
+  /** Embedded PDF document metadata — a second signal for title and year. */
+  docMeta: { title: string | null; year: number | null };
   failures: Failure[];
 }

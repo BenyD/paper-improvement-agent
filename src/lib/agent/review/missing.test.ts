@@ -6,6 +6,7 @@ import { dedupeCandidates } from "./missing";
 const doc = {
   id: "p1",
   title: "Attention Is All You Need",
+  meta: { year: 2017 },
   citations: {
     entries: [
       {

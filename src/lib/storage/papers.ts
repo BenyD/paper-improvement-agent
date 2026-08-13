@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ReviewResult } from "../agent/review/types";
 import type { PaperDocument } from "../doc/types";
@@ -34,6 +34,39 @@ export async function loadPaper(id: string): Promise<PaperDocument | null> {
   } catch {
     return null;
   }
+}
+
+export interface PaperListing {
+  id: string;
+  title: string;
+  filename: string;
+  uploadedAt: string;
+  referenceCount: number;
+}
+
+/** Recent uploads, newest first — the landing page's library. */
+export async function listPapers(limit = 20): Promise<PaperListing[]> {
+  let ids: string[];
+  try {
+    ids = await readdir(DATA_DIR);
+  } catch {
+    return [];
+  }
+  const listings: PaperListing[] = [];
+  for (const id of ids) {
+    const doc = await loadPaper(id).catch(() => null);
+    if (!doc) continue;
+    listings.push({
+      id: doc.id,
+      title: doc.title || doc.meta.filename,
+      filename: doc.meta.filename,
+      uploadedAt: doc.meta.uploadedAt,
+      referenceCount: doc.citations.entries.length,
+    });
+  }
+  return listings
+    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+    .slice(0, limit);
 }
 
 export async function saveReview(
