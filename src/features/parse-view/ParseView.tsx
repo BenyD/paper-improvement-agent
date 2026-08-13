@@ -99,7 +99,14 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
                   </span>
                 </summary>
                 <Separator />
-                <div className="flex flex-col gap-3 px-4 py-3">
+                {/* Content aligns under the heading text (base padding +
+                    chevron width + gap), so hierarchy reads in the body too. */}
+                <div
+                  className="flex flex-col gap-3 py-3 pr-4"
+                  style={{
+                    paddingLeft: `${2.375 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
+                  }}
+                >
                   {section.paragraphs.map((p, i) => (
                     <p
                       key={`${section.id}-${i}`}
