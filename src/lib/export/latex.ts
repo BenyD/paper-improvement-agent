@@ -4,6 +4,7 @@ import {
   templateForStyle,
 } from "../csl/render";
 import type { PaperDocument, ReferenceEntry } from "../doc/types";
+import { isMarkdownTable } from "../parse/tables";
 
 /**
  * Rebuild the paper as LaTeX: structure via \section levels, in-text markers
@@ -51,7 +52,11 @@ export function exportLatex(
     const heading = section.heading.replace(/^\d+(\.\d+)*\.?\s+/, "");
     lines.push(`\\${command}{${escapeLatex(heading)}}`, "");
     for (const paragraph of section.paragraphs) {
-      lines.push(convertMarkers(escapeLatex(paragraph), doc), "");
+      if (isMarkdownTable(paragraph)) {
+        lines.push(tabularFrom(paragraph), "");
+      } else {
+        lines.push(convertMarkers(escapeLatex(paragraph), doc), "");
+      }
     }
   }
 
@@ -62,6 +67,31 @@ export function exportLatex(
     "",
   );
   return lines.join("\n");
+}
+
+/** Reconstructed markdown tables become real tabular environments. */
+function tabularFrom(markdown: string): string {
+  const rows = markdown
+    .split("\n")
+    .filter((r) => !/^\| ?---/.test(r))
+    .map((r) =>
+      r
+        .replace(/^\| /, "")
+        .replace(/ \|$/, "")
+        .split(" | ")
+        .map((c) => escapeLatex(c.replace(/\\\|/g, "|"))),
+    );
+  const cols = Math.max(...rows.map((r) => r.length));
+  const spec = Array(cols).fill("l").join(" ");
+  const body = rows
+    .map((r, i) => {
+      const padded = [...r, ...Array(cols - r.length).fill("")];
+      return `${padded.join(" & ")} \\\\${i === 0 ? " \\hline" : ""}`;
+    })
+    .join("\n");
+  // \small + tabular keeps wide reconstructed tables compiling; genuinely
+  // oversized ones may overrun the margin, which beats dropping data.
+  return `{\\small\n\\begin{tabular}{${spec}}\n${body}\n\\end{tabular}}`;
 }
 
 /** Minimal BibTeX companion so the references also survive as data. */
