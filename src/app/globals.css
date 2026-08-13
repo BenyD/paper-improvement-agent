@@ -155,3 +155,13 @@
     cursor: pointer;
   }
 }
+
+/* Shimmer sweep for skeleton loaders (see components/ui/skeleton.tsx). */
+@keyframes shimmer {
+  0% {
+    translate: -100% 0;
+  }
+  100% {
+    translate: 100% 0;
+  }
+}

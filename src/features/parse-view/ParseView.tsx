@@ -137,63 +137,97 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
         </h2>
         <InlineIssues failures={issuesFor(doc.failures, "structure")} />
         <ul className="flex flex-col gap-1">
-          {doc.sections.map((section) => (
-            <li key={section.id}>
-              <details className="group rounded-lg border border-border">
-                <summary
-                  className="cursor-pointer select-none list-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
-                  style={{
-                    paddingLeft: `${1 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
-                  }}
-                >
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <ChevronRight
-                        className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
-                        aria-hidden
-                      />
-                      <span className="truncate">{section.heading}</span>
+          {doc.sections.map((section, idx) => {
+            // A parent heading like "6 Results" whose text all lives in its
+            // subsections has no direct paragraphs: render it as a plain row
+            // instead of a collapsible that would expand into an empty box.
+            if (section.paragraphs.length === 0) {
+              const hasSubsections =
+                (doc.sections[idx + 1]?.level ?? 0) > section.level;
+              return (
+                <li key={section.id}>
+                  <div
+                    className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium"
+                    style={{
+                      paddingLeft: `${1 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
+                    }}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="size-4 shrink-0" aria-hidden />
+                        <span className="truncate">{section.heading}</span>
+                      </span>
+                      <span className="shrink-0 text-xs font-normal text-muted-foreground">
+                        {hasSubsections
+                          ? "content in subsections"
+                          : "no text captured"}
+                      </span>
                     </span>
-                    <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
-                      <AlignLeft className="size-3.5" aria-hidden />
-                      {section.paragraphs.length}
-                      <span className="sr-only">paragraphs</span>
+                  </div>
+                </li>
+              );
+            }
+            return (
+              <li key={section.id}>
+                <details className="group rounded-lg border border-border">
+                  <summary
+                    className="cursor-pointer select-none list-none rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
+                    style={{
+                      paddingLeft: `${1 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
+                    }}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <ChevronRight
+                          className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                          aria-hidden
+                        />
+                        <span className="truncate">{section.heading}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
+                        <AlignLeft className="size-3.5" aria-hidden />
+                        {section.paragraphs.length}
+                        <span className="sr-only">paragraphs</span>
+                      </span>
                     </span>
-                  </span>
-                </summary>
-                <Separator />
-                {/* Content aligns under the heading text (base padding +
+                  </summary>
+                  <Separator />
+                  {/* Content aligns under the heading text (base padding +
                     chevron width + gap), so hierarchy reads in the body too. */}
-                <div
-                  className="flex flex-col gap-3 py-3 pr-4"
-                  style={{
-                    paddingLeft: `${2.375 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
-                  }}
-                >
-                  {section.paragraphs.map((p, i) =>
-                    isMarkdownTable(p) ? (
-                      <MarkdownTable key={`${section.id}-${i}`} markdown={p} />
-                    ) : isTableDebris(p) ? (
-                      <p
-                        key={`${section.id}-${i}`}
-                        title="Table or figure data from the PDF layout; tables have no text structure in PDFs."
-                        className="rounded-md bg-muted/50 px-2 py-1 font-mono text-xs leading-relaxed text-muted-foreground/70"
-                      >
-                        {p}
-                      </p>
-                    ) : (
-                      <p
-                        key={`${section.id}-${i}`}
-                        className="text-sm leading-relaxed text-muted-foreground"
-                      >
-                        {renderParagraph(p)}
-                      </p>
-                    ),
-                  )}
-                </div>
-              </details>
-            </li>
-          ))}
+                  <div
+                    className="flex flex-col gap-3 py-3 pr-4"
+                    style={{
+                      paddingLeft: `${2.375 + (section.level > 0 ? section.level - 1 : 0) * 1.25}rem`,
+                    }}
+                  >
+                    {section.paragraphs.map((p, i) =>
+                      isMarkdownTable(p) ? (
+                        <MarkdownTable
+                          key={`${section.id}-${i}`}
+                          markdown={p}
+                        />
+                      ) : isTableDebris(p) ? (
+                        <p
+                          key={`${section.id}-${i}`}
+                          title="Table or figure data from the PDF layout; tables have no text structure in PDFs."
+                          className="rounded-md bg-muted/50 px-2 py-1 font-mono text-xs leading-relaxed text-muted-foreground/70"
+                        >
+                          {p}
+                        </p>
+                      ) : (
+                        <p
+                          key={`${section.id}-${i}`}
+                          className="text-sm leading-relaxed text-muted-foreground"
+                        >
+                          {renderParagraph(p)}
+                        </p>
+                      ),
+                    )}
+                  </div>
+                </details>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

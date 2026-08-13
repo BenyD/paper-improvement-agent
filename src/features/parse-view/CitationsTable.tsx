@@ -34,7 +34,7 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
       resolution.source === "openalex" ? "OpenAlex" : "Semantic Scholar";
     return (
       <Badge
-        className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300"
+        className="bg-emerald-100 text-emerald-800 [a]:hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:[a]:hover:bg-emerald-900"
         render={
           <a
             href={resolution.url}
@@ -52,7 +52,7 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
   if (resolution.status === "low-confidence") {
     return (
       <Badge
-        className="bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-950 dark:text-orange-300"
+        className="bg-orange-100 text-orange-800 [a]:hover:bg-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:[a]:hover:bg-orange-900"
         render={
           <a
             href={resolution.url}
@@ -87,38 +87,30 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
 
   return (
     <section aria-labelledby="citations-heading">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-          <h2
-            id="citations-heading"
-            className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-          >
-            <BookMarked className="size-4" aria-hidden />
-            Citations
-          </h2>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="outline">{entries.length} references</Badge>
-            <Badge className="bg-(--success)/10 text-(--success)">
-              <BadgeCheck aria-hidden /> {verified} verified
+      <div className="mb-3 flex flex-col gap-2">
+        <h2
+          id="citations-heading"
+          className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          <BookMarked className="size-4" aria-hidden />
+          Citations
+        </h2>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline">{entries.length} references</Badge>
+          <Badge className="bg-(--success)/10 text-(--success)">
+            <BadgeCheck aria-hidden /> {verified} verified
+          </Badge>
+          <Badge variant="outline">{markers.length} in-text markers</Badge>
+          {orphans.length > 0 && (
+            <Badge className="bg-(--warning)/10 text-(--warning)">
+              <CircleAlert aria-hidden /> {orphans.length} orphan
+              {orphans.length === 1 ? "" : "s"}
             </Badge>
-            <Badge variant="outline">{markers.length} in-text markers</Badge>
-            {orphans.length > 0 && (
-              <Badge className="bg-(--warning)/10 text-(--warning)">
-                <CircleAlert aria-hidden /> {orphans.length} orphan
-                {orphans.length === 1 ? "" : "s"}
-              </Badge>
-            )}
-            <Badge variant="secondary" className="font-mono text-[11px]">
-              {entryStyle ?? "unknown"} / {citationStyle}
-            </Badge>
-          </div>
+          )}
+          <Badge variant="secondary" className="font-mono text-[11px]">
+            {entryStyle ?? "unknown"} / {citationStyle}
+          </Badge>
         </div>
-        {entries.length - verified > 0 && (
-          <ReverifyButton
-            paperId={doc.id}
-            unverifiedCount={entries.length - verified}
-          />
-        )}
       </div>
       <InlineIssues failures={issuesFor(doc.failures, "citations")} />
       {entries.length === 0 ? (
@@ -182,6 +174,14 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+      {entries.length > 0 && entries.length - verified > 0 && (
+        <div className="mt-3">
+          <ReverifyButton
+            paperId={doc.id}
+            unverifiedCount={entries.length - verified}
+          />
         </div>
       )}
     </section>

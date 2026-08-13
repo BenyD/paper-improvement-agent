@@ -63,7 +63,7 @@ export function ReverifyButton({
   };
 
   return (
-    <Button variant="outline" size="xs" onClick={run} disabled={busy}>
+    <Button variant="outline" onClick={run} disabled={busy} className="w-full">
       {busy ? (
         <Loader2 className="animate-spin" aria-hidden />
       ) : (
