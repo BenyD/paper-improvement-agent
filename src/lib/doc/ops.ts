@@ -24,6 +24,8 @@ export type EditOp =
     }
   | { type: "delete_paragraph"; sectionId: string; paragraph: number }
   | { type: "edit_heading"; sectionId: string; heading: string }
+  /** Rewrite the abstract (a document field, not a section paragraph). */
+  | { type: "replace_abstract"; text: string }
   /** Add a NEW reference — only from a search result the loop itself saw. */
   | { type: "add_reference"; csl: CslItem; resolution: Resolution };
 
@@ -46,6 +48,7 @@ export function applyOps(doc: PaperDocument, ops: EditOp[]): PaperDocument {
   }));
   const byId = new Map(sections.map((s) => [s.id, s]));
   const entries: ReferenceEntry[] = [...doc.citations.entries];
+  let abstract = doc.abstract;
 
   // Text ops address ORIGINAL paragraph indices; stage mutations, then rebuild.
   type Staged = { replaced?: string; deleted?: boolean; inserts: string[] };
@@ -73,6 +76,9 @@ export function applyOps(doc: PaperDocument, ops: EditOp[]): PaperDocument {
         if (section) section.heading = op.heading;
         break;
       }
+      case "replace_abstract":
+        abstract = op.text;
+        break;
       case "add_reference": {
         const nextNumber = entries.length + 1;
         const usesNumbers =
@@ -121,6 +127,7 @@ export function applyOps(doc: PaperDocument, ops: EditOp[]): PaperDocument {
 
   return {
     ...doc,
+    abstract,
     sections,
     citations: {
       ...doc.citations,

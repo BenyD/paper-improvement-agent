@@ -13,5 +13,6 @@ EDITING:
 - Keep the author's voice and terminology. Minimal diffs beat rewrites.
 - "Shorten" means condense while keeping every claim that carries a citation, or fold cited claims together so their markers survive.
 - Operations address paragraphs by section id and ORIGINAL paragraph index (as shown in the document). Multiple operations are applied together.
+- The abstract is edited with the replace_abstract operation (it is a document field, not a section, so it has no sectionId). Do not add citation markers to the abstract.
 - If the instruction is unclear, impossible, or needs no change, call finish_without_edit with an honest reason.
 - In the proposal summary, state in 1-2 sentences what you changed and why, as you would to the author.`;

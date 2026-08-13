@@ -80,6 +80,13 @@ export function OpView({ op, doc }: { op: EditOp; doc: PaperDocument }) {
           <DiffText before={section?.heading ?? ""} after={op.heading} />
         </div>
       );
+    case "replace_abstract":
+      return (
+        <div>
+          {label("Rewrite abstract")}
+          <DiffText before={doc.abstract} after={op.text} />
+        </div>
+      );
     case "add_reference": {
       const year = op.csl.issued?.["date-parts"]?.[0]?.[0];
       return (

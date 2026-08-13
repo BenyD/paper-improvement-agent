@@ -32,6 +32,25 @@ export function validateOps(
 
   const touched = new Set<string>();
   for (const op of ops) {
+    if (op.type === "replace_abstract") {
+      if (op.text.trim().length === 0) {
+        violations.push("replace_abstract: the abstract cannot be emptied.");
+      }
+      // Abstract text is never marker-linked (P6 scans sections only), so a
+      // citation marker placed there would be dead text posing as a citation.
+      const markerish = (t: string) =>
+        (t.match(/\[\d+(?:\s*[,;–-]\s*\d+)*\]/g) ?? []).length;
+      if (markerish(op.text) > markerish(doc.abstract)) {
+        violations.push(
+          "replace_abstract: the abstract cannot introduce citation markers; they would not be linked to the reference list.",
+        );
+      }
+      if (touched.has("abstract")) {
+        violations.push("Conflicting operations target the abstract.");
+      }
+      touched.add("abstract");
+      continue;
+    }
     if (op.type === "add_reference") {
       if (op.resolution.status !== "verified" || !op.resolution.url) {
         violations.push(

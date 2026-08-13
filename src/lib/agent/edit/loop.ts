@@ -39,6 +39,10 @@ const ModelOpSchema = z.discriminatedUnion("type", [
     sectionId: z.string(),
     heading: z.string().min(1),
   }),
+  z.object({
+    type: z.literal("replace_abstract"),
+    text: z.string().min(1),
+  }),
   z.object({ type: z.literal("add_reference"), candidateId: z.string() }),
 ]);
 

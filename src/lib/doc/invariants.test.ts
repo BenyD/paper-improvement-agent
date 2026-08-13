@@ -253,3 +253,43 @@ describe("validateOps — citation preservation (the non-negotiable)", () => {
     ).toBe(false);
   });
 });
+
+describe("validateOps — replace_abstract", () => {
+  it("ACCEPTS a plain abstract rewrite and applies it", () => {
+    const doc = makeDoc();
+    const result = validateOps(doc, [
+      { type: "replace_abstract", text: "A shorter abstract." },
+    ]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.after.abstract).toBe("A shorter abstract.");
+  });
+
+  it("REJECTS emptying the abstract", () => {
+    const doc = makeDoc();
+    const result = validateOps(doc, [
+      { type: "replace_abstract", text: "   " },
+    ]);
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.violations.join(" ")).toMatch(/cannot be emptied/);
+  });
+
+  it("REJECTS introducing citation markers into the abstract", () => {
+    const doc = makeDoc();
+    const result = validateOps(doc, [
+      { type: "replace_abstract", text: "Transformers changed NLP [1]." },
+    ]);
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.violations.join(" ")).toMatch(/citation markers/);
+  });
+
+  it("REJECTS two conflicting abstract rewrites in one op set", () => {
+    const doc = makeDoc();
+    const result = validateOps(doc, [
+      { type: "replace_abstract", text: "One version." },
+      { type: "replace_abstract", text: "Another version." },
+    ]);
+    expect(result.ok).toBe(false);
+  });
+});

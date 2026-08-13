@@ -11,7 +11,7 @@ export function buildDocumentContext(doc: PaperDocument): string {
     `PAPER: ${doc.title}`,
     `Citation style: ${doc.citations.citationStyle} · Reference list style: ${doc.citations.entryStyle}`,
     "",
-    "ABSTRACT:",
+    "ABSTRACT (editable via the replace_abstract op; it is a document field, not a section):",
     doc.abstract,
     "",
     "SECTIONS (cite paragraphs as sectionId/index):",
