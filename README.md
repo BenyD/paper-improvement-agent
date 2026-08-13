@@ -57,6 +57,7 @@ This project was built with Claude Code (Claude Fable 5) driving implementation,
 
 ## With more time
 
+- Deploying to Vercel: the app builds and runs, but `data/` filesystem storage is ephemeral on serverless — a deployed instance needs the storage swap below before papers persist across requests/instances.
 - Production path: Postgres + object storage for papers, authenticated multi-tenant workspaces, Redis-backed job queue for long-running reviews; schema versioning for stored documents (today old documents are handled defensively and healed by re-upload).
 - Claim checking against full texts (DeepSciVerify-style escalation) instead of abstracts only.
 - Vendored `.csl` style files (IEEE, ACM) beyond citation-js's bundled APA/Vancouver/Harvard, with user style pick in the export panel.

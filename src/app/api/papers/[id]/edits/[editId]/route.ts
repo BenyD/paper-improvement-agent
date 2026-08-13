@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { validateOps } from "@/lib/doc/invariants";
 import {
   loadPaper,
@@ -27,20 +28,19 @@ export async function POST(
     );
   }
 
-  const body = (await req.json().catch(() => null)) as {
-    action?: "approve" | "reject";
-  } | null;
-  if (body?.action === "reject") {
-    await saveProposal(id, { ...proposal, status: "rejected" });
-    return NextResponse.json({ ok: true, status: "rejected" });
-  }
-  if (body?.action !== "approve") {
+  const Body = z.object({ action: z.enum(["approve", "reject"]) });
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json(
       { error: "action must be approve or reject." },
       { status: 400 },
     );
   }
-
+  const body = parsed.data;
+  if (body.action === "reject") {
+    await saveProposal(id, { ...proposal, status: "rejected" });
+    return NextResponse.json({ ok: true, status: "rejected" });
+  }
   const verdict = validateOps(doc, proposal.ops);
   if (!verdict.ok) {
     return NextResponse.json(

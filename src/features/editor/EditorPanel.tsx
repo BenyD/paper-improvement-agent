@@ -1,12 +1,34 @@
 "use client";
 
+import { Check, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { EditProposal } from "@/lib/doc/ops";
 import type { PaperDocument } from "@/lib/doc/types";
 import { OpView } from "./DiffView";
 
 type Phase = "idle" | "thinking" | "reviewing" | "deciding";
+
+const STATUS_BADGE: Record<
+  EditProposal["status"],
+  "default" | "secondary" | "destructive"
+> = {
+  approved: "default",
+  proposed: "secondary",
+  rejected: "destructive",
+};
 
 export function EditorPanel({
   doc,
@@ -91,112 +113,117 @@ export function EditorPanel({
   };
 
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+    <section aria-labelledby="editor-heading">
+      <h2
+        id="editor-heading"
+        className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+      >
         Edit by instruction
       </h2>
 
-      <div className="flex gap-2">
-        <input
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (command.trim().length >= 4 && phase === "idle") void propose();
+        }}
+      >
+        <Input
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              command.trim().length >= 4 &&
-              phase === "idle"
-            )
-              void propose();
-          }}
-          placeholder='e.g. "make the introduction more concise" or "add supporting citations to section 2"'
+          placeholder='e.g. "make the introduction more concise"'
+          aria-label="Editing instruction"
           disabled={phase === "thinking"}
-          className="w-full rounded-lg border border-neutral-300 bg-transparent px-4 py-2.5 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700"
         />
-        <button
-          type="button"
-          onClick={() => void propose()}
+        <Button
+          type="submit"
           disabled={phase === "thinking" || command.trim().length < 4}
-          className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="shrink-0"
         >
-          {phase === "thinking" ? "Working..." : "Propose edit"}
-        </button>
-      </div>
-      {phase === "thinking" && (
-        <p className="mt-2 animate-pulse text-sm text-neutral-500">
-          The agent is reading the paper, searching for sources if needed, and
-          drafting a validated proposal...
-        </p>
-      )}
+          {phase === "thinking" && (
+            <Loader2 className="animate-spin" aria-hidden />
+          )}
+          {phase === "thinking" ? "Working…" : "Propose edit"}
+        </Button>
+      </form>
 
-      {message && (
-        <p className="mt-3 rounded-lg bg-neutral-50 px-4 py-3 text-sm dark:bg-neutral-900">
-          {message}
-        </p>
-      )}
+      <output aria-live="polite" className="block">
+        {phase === "thinking" && (
+          <div className="mt-3 flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">
+              The agent is reading the paper, searching for sources if needed,
+              and drafting a validated proposal…
+            </p>
+            <div aria-hidden className="flex flex-col gap-2">
+              <Skeleton className="h-5 w-3/4 rounded" />
+              <Skeleton className="h-20 w-full rounded-xl" />
+            </div>
+          </div>
+        )}
+        {message && (
+          <p className="mt-3 rounded-lg bg-muted px-4 py-3 text-sm">
+            {message}
+          </p>
+        )}
+      </output>
+
       {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
-          {error}
-        </p>
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {proposal && (
-        <div className="mt-4 rounded-xl border border-neutral-300 dark:border-neutral-700">
-          <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+        <Card className="mt-4 gap-0 py-0">
+          <CardHeader className="px-4 py-3">
             <p className="text-sm font-medium">{proposal.summary}</p>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {proposal.ops.length} operation
               {proposal.ops.length === 1 ? "" : "s"} · validated: no citations
               lost · model {proposal.model}
             </p>
-          </div>
-          <div className="flex flex-col gap-4 px-4 py-4">
+          </CardHeader>
+          <Separator />
+          <CardContent className="flex flex-col gap-4 px-4 py-4">
             {proposal.ops.map((op, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: static proposal render
               <OpView key={i} op={op} doc={doc} />
             ))}
-          </div>
-          <div className="flex gap-2 border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
-            <button
-              type="button"
+          </CardContent>
+          <Separator />
+          <CardFooter className="gap-2 px-4 py-3">
+            <Button
               onClick={() => void decide("approve")}
               disabled={phase === "deciding"}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="bg-emerald-600 text-white hover:bg-emerald-500"
             >
-              Approve & apply
-            </button>
-            <button
-              type="button"
+              <Check aria-hidden /> Approve &amp; apply
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => void decide("reject")}
               disabled={phase === "deciding"}
-              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
             >
-              Reject
-            </button>
-          </div>
-        </div>
+              <X aria-hidden /> Reject
+            </Button>
+          </CardFooter>
+        </Card>
       )}
 
       {pastProposals.length > 0 && (
-        <details className="mt-4 rounded-lg border border-neutral-200 dark:border-neutral-800">
-          <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-900">
+        <details className="mt-4 rounded-lg border border-border">
+          <summary className="cursor-pointer select-none rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Edit history ({pastProposals.length})
           </summary>
-          <ul className="flex flex-col gap-2 border-t border-neutral-100 px-4 py-3 dark:border-neutral-800">
+          <Separator />
+          <ul className="flex flex-col gap-2 px-4 py-3">
             {pastProposals.map((p) => (
               <li key={p.id} className="text-sm">
-                <span
-                  className={`mr-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    p.status === "approved"
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                      : p.status === "rejected"
-                        ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-                        : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
-                  }`}
-                >
+                <Badge variant={STATUS_BADGE[p.status]} className="mr-2">
                   {p.status}
-                </span>
+                </Badge>
                 <span className="font-medium">"{p.command}"</span>
-                <span className="text-neutral-500"> — {p.summary}</span>
+                <span className="text-muted-foreground"> — {p.summary}</span>
               </li>
             ))}
           </ul>

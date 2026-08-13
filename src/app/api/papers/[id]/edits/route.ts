@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { hasAnthropicKey } from "@/lib/agent/client";
 import { runEditAgent } from "@/lib/agent/edit/loop";
 import { loadPaper, saveProposal } from "@/lib/storage/papers";
@@ -24,16 +25,15 @@ export async function POST(
     );
   }
 
-  const body = (await req.json().catch(() => null)) as {
-    command?: string;
-  } | null;
-  const command = body?.command?.trim();
-  if (!command || command.length < 4) {
+  const Body = z.object({ command: z.string().trim().min(4).max(500) });
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Provide an editing instruction." },
+      { error: "Provide an editing instruction (4-500 characters)." },
       { status: 400 },
     );
   }
+  const { command } = parsed.data;
 
   try {
     const outcome = await runEditAgent(doc, command);

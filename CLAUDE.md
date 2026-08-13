@@ -5,7 +5,7 @@ Take-home assessment: upload a research paper PDF → parse structure + citation
 ## Architecture rules
 
 - Core logic lives in `src/lib/**` as framework-agnostic TypeScript modules; Next.js route handlers in `src/app/api/**` are thin adapters. Never put parsing/agent logic in a route or component.
-- UI is organized feature-first (lensdrop convention): `src/features/<slice>/` holds the components/actions for each product slice (upload, parse-view, review, editor, export); `src/app/**` contains routes only, importing from features. No generic `components/` or `utils/` dumping grounds.
+- UI is organized feature-first (lensdrop convention): `src/features/<slice>/` holds the components/actions for each product slice (upload, parse-view, review, editor, export); `src/app/**` contains routes only, importing from features. Design-system primitives live in `src/components/ui/` (shadcn on Base UI) — add via `npx shadcn add <name>`; no other generic `components/` or `utils/` dumping grounds.
 - One canonical citation model: CSL-JSON (`src/lib/csl/types.ts`). Everything (parsed refs, API results) converges to it. Formatting only via citeproc, never string templates.
 - The agent layer follows eve-style conventions: one typed tool per file in `src/lib/agent/tools/`, instructions separate from tool code, no single giant prompt.
 - Citation invariants are enforced by deterministic code (`src/lib/doc/invariants.ts`), never by prompting. Every edit op is validated before it can be applied.

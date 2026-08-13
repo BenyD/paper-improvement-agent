@@ -1,7 +1,10 @@
 "use client";
 
+import { FileText, Loader2, UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 type UploadState =
   | { phase: "idle" }
@@ -45,10 +48,14 @@ export function UploadDropzone() {
     [upload],
   );
 
+  const uploading = state.phase === "uploading";
+
   return (
     <div className="w-full max-w-xl">
       <button
         type="button"
+        aria-label="Upload a research paper PDF"
+        aria-busy={uploading}
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -56,25 +63,34 @@ export function UploadDropzone() {
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
-        disabled={state.phase === "uploading"}
-        className={`flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-8 py-16 transition-colors ${
-          dragOver
-            ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-            : "border-neutral-300 dark:border-neutral-700"
-        } ${state.phase === "uploading" ? "opacity-60" : "hover:border-neutral-400 dark:hover:border-neutral-500"}`}
+        disabled={uploading}
+        className={cn(
+          "flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border px-8 py-14 transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          dragOver && "border-primary bg-primary/5",
+          uploading
+            ? "cursor-wait opacity-70"
+            : "hover:border-muted-foreground/50 hover:bg-muted/40",
+        )}
       >
-        {state.phase === "uploading" ? (
+        {uploading ? (
           <>
-            <span className="text-lg font-medium">Parsing {state.name}...</span>
-            <span className="text-sm text-neutral-500">
-              Extracting structure and locating references
+            <Loader2
+              className="size-8 animate-spin text-muted-foreground"
+              aria-hidden
+            />
+            <span className="text-lg font-medium">Parsing {state.name}…</span>
+            <span className="text-sm text-muted-foreground">
+              Extracting structure, linking citations, verifying references
+              against OpenAlex &amp; Semantic Scholar — about 30 seconds
             </span>
           </>
         ) : (
           <>
+            <UploadCloud className="size-8 text-muted-foreground" aria-hidden />
             <span className="text-lg font-medium">Drop your paper here</span>
-            <span className="text-sm text-neutral-500">
-              PDF up to 50 MB. arXiv papers work great.
+            <span className="text-sm text-muted-foreground">
+              or click to browse · PDF up to 50 MB · arXiv papers work great
             </span>
           </>
         )}
@@ -84,15 +100,19 @@ export function UploadDropzone() {
         type="file"
         accept="application/pdf,.pdf"
         className="hidden"
+        aria-hidden
+        tabIndex={-1}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void upload(file);
         }}
       />
       {state.phase === "error" && (
-        <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
-          {state.message}
-        </p>
+        <Alert variant="destructive" className="mt-4">
+          <FileText aria-hidden />
+          <AlertTitle>Upload failed</AlertTitle>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
       )}
     </div>
   );
