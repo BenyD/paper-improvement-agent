@@ -7,7 +7,13 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!.next", "!data"]
+    "includes": [
+      "**",
+      "!node_modules",
+      "!.next",
+      "!data",
+      "!docs/architecture.svg"
+    ]
   },
   "formatter": {
     "enabled": true,
