@@ -12,7 +12,10 @@ export function InlineIssues({ failures }: { failures: Failure[] }) {
   return (
     <ul className="mb-3 flex flex-col gap-1.5">
       {failures.map((f, i) =>
-        f.context ? (
+        // Expandable only when there is more than the preview can show:
+        // a one-line context renders inline, with no chevron lying about
+        // hidden content.
+        f.context && (f.context.includes("\n") || f.context.length > 90) ? (
           <li
             key={`${f.code}-${i}`}
             className="rounded-lg bg-(--warning)/10 text-sm text-foreground"
@@ -48,7 +51,14 @@ export function InlineIssues({ failures }: { failures: Failure[] }) {
               className="mt-0.5 size-3.5 shrink-0 text-(--warning)"
               aria-hidden
             />
-            <span className="min-w-0 flex-1">{f.message}</span>
+            <span className="min-w-0 flex-1">
+              {f.message}
+              {f.context && (
+                <span className="block font-mono text-xs text-muted-foreground">
+                  {f.context}
+                </span>
+              )}
+            </span>
           </li>
         ),
       )}
