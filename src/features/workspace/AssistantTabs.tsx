@@ -29,7 +29,9 @@ export function AssistantTabs({
       onValueChange={(v) => setTab(v as string)}
       className="flex h-full flex-col gap-0"
     >
-      <div className="border-b border-border px-4 py-2">
+      {/* pt matches the document pane's top padding so the tab bar centers
+          with the All papers / Source PDF / Export row across the split. */}
+      <div className="border-b border-border px-4 pt-[22px] pb-2">
         <TabsList className="w-full">
           <TabsTrigger value="review" className="flex-1">
             <ScanSearch aria-hidden /> Peer review
