@@ -53,9 +53,13 @@ export function locateReferences(
   if (start !== -1) {
     let end = lines.length;
     for (let i = start + 1; i < lines.length; i++) {
+      // Any detected heading ends the region — appendices are often titled
+      // freely ("Attention Visualizations"), not just "Appendix".
+      const isHeading = classifyHeading(lines[i], bodySize) !== null;
       if (
-        POST_REF_HEADING.test(lines[i].text.trim()) &&
-        classifyHeading(lines[i], bodySize)
+        isHeading &&
+        (POST_REF_HEADING.test(lines[i].text.trim()) ||
+          lines[i].fontSize >= bodySize * 1.05)
       ) {
         end = i;
         break;

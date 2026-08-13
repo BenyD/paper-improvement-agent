@@ -1,5 +1,21 @@
 import type { PaperDocument } from "@/lib/doc/types";
+import { CitationsTable } from "./CitationsTable";
 import { FailuresPanel } from "./FailuresPanel";
+
+/** Render ⟦^n⟧ superscript-marker tokens from P1 as real superscripts. */
+function renderParagraph(text: string) {
+  const parts = text.split(/⟦\^([\d\s,;–-]+)⟧/);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      // biome-ignore lint/suspicious/noArrayIndexKey: static render of parsed text
+      <sup key={i} className="text-blue-600 dark:text-blue-400">
+        [{part}]
+      </sup>
+    ) : (
+      part
+    ),
+  );
+}
 
 export function ParseView({ doc }: { doc: PaperDocument }) {
   return (
@@ -49,7 +65,7 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
                       key={`${section.id}-${i}`}
                       className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
                     >
-                      {p}
+                      {renderParagraph(p)}
                     </p>
                   ))}
                 </div>
@@ -59,19 +75,22 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
         </ul>
       </section>
 
+      <CitationsTable doc={doc} />
+
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-          References {doc.references.heading && `· "${doc.references.heading}"`}{" "}
-          · page {doc.references.startPage}
+          Raw reference region{" "}
+          {doc.references.heading && `· "${doc.references.heading}"`} · page{" "}
+          {doc.references.startPage}
         </h2>
         {doc.references.rawLines.length === 0 ? (
           <p className="text-sm text-neutral-500">No reference list located.</p>
         ) : (
           <details className="rounded-lg border border-neutral-200 dark:border-neutral-800">
             <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-900">
-              {doc.references.rawLines.length} raw lines located
+              {doc.references.rawLines.length} raw lines
               <span className="ml-2 text-xs font-normal text-neutral-400">
-                entry segmentation and CSL parsing land in Phase 2
+                as extracted, before segmentation
               </span>
             </summary>
             <ol className="flex flex-col gap-1 border-t border-neutral-100 px-4 py-3 font-mono text-xs leading-relaxed text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">

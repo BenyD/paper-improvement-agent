@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parsePaper } from "@/lib/parse/pipeline";
+import { parsePaper, resolveCitations } from "@/lib/parse/pipeline";
 import { savePaper } from "@/lib/storage/papers";
 
 export const runtime = "nodejs";
@@ -32,7 +32,10 @@ export async function POST(request: Request) {
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   try {
-    const doc = await parsePaper(bytes, file.name);
+    const parsed = await parsePaper(bytes, file.name);
+    // Verify citations against OpenAlex/Semantic Scholar. A total outage still
+    // yields a usable document — entries just stay honestly "unverified".
+    const doc = await resolveCitations(parsed);
     await savePaper(doc, bytes);
     return NextResponse.json({ id: doc.id, failures: doc.failures.length });
   } catch (err) {

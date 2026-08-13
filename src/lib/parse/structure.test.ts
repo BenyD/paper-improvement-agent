@@ -9,6 +9,7 @@ const line = (text: string, overrides: Partial<Line> = {}): Line => ({
   page: 1,
   fontSize: 10,
   column: 0,
+  spans: [],
   ...overrides,
 });
 

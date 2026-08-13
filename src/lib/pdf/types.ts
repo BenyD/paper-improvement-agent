@@ -21,6 +21,11 @@ export interface Line {
   fontSize: number;
   /** 0 for single-column pages / left column, 1 for right column. */
   column: number;
+  /**
+   * The raw spans composing the line, in reading order. Kept so later stages
+   * can inspect intra-line typography (superscript citation markers, italics).
+   */
+  spans: TextSpan[];
 }
 
 export interface PageInfo {

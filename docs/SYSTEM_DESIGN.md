@@ -32,6 +32,18 @@ Body font size = length-weighted dominant size. Title = largest-font line cluste
 
 Primary: the *last* heading matching References/Bibliography/Works Cited (last, because a ToC can mention it earlier); the region runs to the next post-reference heading (Appendix, Acknowledgments) or EOF. Fallback: citation-density scan over the final third — the longest run of citation-shaped lines (`[n]`, `n.`, author-initials patterns, tolerating wrapped continuation lines), reported as an explicit `no-heading-fallback` failure so the user knows the location was inferred. Failure mode: `not-found` with an empty region — surfaced in the UI.
 
+### P4 Segment — as implemented (`src/lib/parse/segment.ts`)
+
+Entry-start convention detected by counting line shapes: `[n]` → bracket, `n.` → number-dot, otherwise hanging-indent geometry (entries return to the leftmost margin; wrapped continuations are indented). Groups are joined with hyphenation repair. Numbered sequences are validated — a gap ("[2] → [4]") is a surfaced `sequence-gap` failure, and implausibly short segments are surfaced with their text, never dropped.
+
+### P5 Parse & resolve — as implemented (`src/lib/parse/entry.ts`, `src/lib/sources/`)
+
+Local extraction first: DOI and arXiv ids by pattern, year, authors (three name-shape parsers with CSL `literal` fallback — imperfect data beats dropped data), and a structural title guess (APA: the segment after the parenthesized year; otherwise the first long non-venue segment, filtering initials-heavy author continuations). Then resolution: DOI → OpenAlex exact; arXiv id → Semantic Scholar, falling back to OpenAlex's DataCite DOI; else title search on OpenAlex then Semantic Scholar, accepted only at normalized token similarity ≥ 0.75 (with a containment rule for truncated guesses, ≥4 matching tokens). Verified entries adopt the richer API record as their CSL-JSON, including the abstract (used by the Phase-3 claim checker); unresolved entries keep local best-effort CSL flagged `unverified` with the *actual* reason (no match / HTTP status). API access goes through one disk-cached, per-host-throttled, retry-with-backoff fetch (`sources/cache.ts`); Semantic Scholar's unauthenticated 429s therefore degrade to honest unverified states, never to fabricated matches. Measured on arXiv 1706.03762: 39/40 verified (29 OpenAlex, 10 S2), the remaining one labeled with its real cause.
+
+### P6 Link markers — as implemented (`src/lib/parse/markers.ts`)
+
+Style detection counts pattern hits across the body: `[n]`/`[n,m]`/`[n-m]` brackets, `⟦^n⟧` superscript tokens (emitted by P1 for raised small-font digit runs), and author-year forms — parenthetical `(Smith et al., 2020; Jones and Lee, 2019)` with semicolon groups, and narrative `Smith et al. (2020)`. The dominant pattern is the paper's citation style. Numeric markers link by list index (ranges expanded); author-year markers link by first-author surname + year against parsed CSL fields with raw-text fallback. In a non-superscript paper, superscript tokens that link to nothing are classified as footnote marks and dropped — everything else that fails to link is surfaced: orphan markers (cite nothing in the list), and never-cited reference entries. Measured on the test paper: 102 markers, style `numeric-bracket`, zero orphans.
+
 ### Where CSL-JSON fits
 
 One canonical model: every citation — parsed from the PDF or fetched from an API — converges to CSL-JSON. Rendering (bibliography, inserted citations) goes exclusively through citeproc with a .csl style; the paper's style is detected in P6 (fallback: user choice). No hand-rolled citation formatting anywhere.
