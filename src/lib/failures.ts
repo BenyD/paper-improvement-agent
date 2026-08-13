@@ -9,7 +9,8 @@ export interface Failure {
     | "locate-refs"
     | "segment"
     | "parse-entry"
-    | "link-markers";
+    | "link-markers"
+    | "resolve";
   code: string;
   message: string;
   /** Optional raw material for the UI (e.g. the text we could not parse). */

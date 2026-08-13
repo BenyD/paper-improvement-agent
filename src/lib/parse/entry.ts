@@ -10,7 +10,8 @@ export interface EntryFields {
 const DOI_RE = /\b10\.\d{4,9}\/[^\s"<>;,]+/i;
 // "arXiv:1607.06450" and the pre-2017 CoRR style "abs/1409.0473".
 const ARXIV_RE = /(?:arxiv[:\s]*|abs\/)(\d{4}\.\d{4,5})(v\d+)?/i;
-const YEAR_RE = /\b(19|20)\d{2}\b/g;
+// Letter suffixes ("2024a") are natbib disambiguators, not part of the year.
+const YEAR_RE = /\b(19|20)\d{2}[a-z]?\b/g;
 
 /**
  * P5a — Local field extraction from one reference entry's text.
@@ -31,7 +32,9 @@ export function extractEntryFields(text: string): EntryFields {
   const arxiv = text.match(ARXIV_RE)?.[1];
   if (arxiv) csl.custom = { arxiv };
 
-  const years = [...text.matchAll(YEAR_RE)].map((m) => Number(m[0]));
+  const years = [...text.matchAll(YEAR_RE)].map((m) =>
+    Number(m[0].replace(/[a-z]$/, "")),
+  );
   const now = new Date().getFullYear();
   const year = years.filter((y) => y >= 1900 && y <= now + 1).at(-1);
   if (year) csl.issued = { "date-parts": [[year]] };

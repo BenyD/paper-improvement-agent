@@ -220,17 +220,34 @@ function authorYearMarker(
   let anyLooksLikeCite = false;
 
   for (const cite of cites) {
-    const year = cite.match(/(?:19|20)\d{2}[a-z]?/)?.[0];
-    const surname = cite.match(/^[A-Z][\p{L}'’-]+/u)?.[0];
-    if (!year || !surname) continue;
+    // Org authors keep their full token ("AI@Meta", "DeepSeek-AI").
+    const surname = cite.match(/^[A-Z][\p{L}\d@&'’.-]*/u)?.[0];
+    // Every year in the cite, with natbib suffix groups expanded:
+    // "2023, 2024a,b" → 2023, 2024a, 2024b.
+    const yearTokens: string[] = [];
+    for (const ym of cite.matchAll(
+      /((?:19|20)\d{2})([a-z])?((?:\s*,\s*[a-z]\b)*)/g,
+    )) {
+      if (!ym[2]) {
+        yearTokens.push(ym[1]);
+        continue;
+      }
+      yearTokens.push(ym[1] + ym[2]);
+      for (const l of ym[3]?.match(/[a-z]/g) ?? []) {
+        yearTokens.push(ym[1] + l);
+      }
+    }
+    if (!surname || yearTokens.length === 0) continue;
     anyLooksLikeCite = true;
-    const hit = findByAuthorYear(refs, surname, year);
-    if (hit && "ref" in hit) targets.push(hit.ref.id);
-    else if (hit && "ambiguous" in hit)
-      unresolved.push(
-        `${cite} — ambiguous, matches ${hit.ambiguous.length} entries`,
-      );
-    else unresolved.push(cite);
+    for (const year of yearTokens) {
+      const hit = findByAuthorYear(refs, surname, year);
+      if (hit && "ref" in hit) targets.push(hit.ref.id);
+      else if (hit && "ambiguous" in hit)
+        unresolved.push(
+          `${surname}, ${year} — ambiguous, matches ${hit.ambiguous.length} entries`,
+        );
+      else unresolved.push(`${surname}, ${year}`);
+    }
   }
 
   if (!anyLooksLikeCite) return null;
@@ -293,15 +310,20 @@ function findByAuthorYear(
   const yearNum = Number(year.replace(/[a-z]$/, ""));
   const lower = surname.toLowerCase();
 
+  // Whole-token match: substring matching turned short org names ("AI")
+  // into wildcards that hit half the reference list.
+  const boundary = new RegExp(
+    `(^|[^\\p{L}\\d])${lower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\p{L}\\d]|$)`,
+    "iu",
+  );
   const candidates = refs.filter((ref) => {
     const refYear = ref.csl.issued?.["date-parts"]?.[0]?.[0];
     if (refYear !== yearNum) return false;
     const inAuthors = (ref.csl.author ?? []).some(
       (a) =>
-        a.family?.toLowerCase() === lower ||
-        a.literal?.toLowerCase().includes(lower),
+        a.family?.toLowerCase() === lower || boundary.test(a.literal ?? ""),
     );
-    return inAuthors || ref.rawText.slice(0, 120).toLowerCase().includes(lower);
+    return inAuthors || boundary.test(ref.rawText.slice(0, 120));
   });
 
   if (candidates.length === 0) return null;

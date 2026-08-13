@@ -69,9 +69,17 @@ export function segmentReferences(lines: Line[]): SegmentResult {
     }
     validateSequence(groups, failures);
   } else {
-    // Hanging indent: entry starts return to the leftmost margin.
-    const margin = Math.min(...lines.map((l) => l.x));
+    // Hanging indent: entry starts return to the leftmost margin. The margin
+    // is per page AND column — in a two-column reference list, right-column
+    // entries start at mid-page, and a single global margin would glue every
+    // right-column entry onto its predecessor.
+    const marginBy = new Map<string, number>();
+    const keyOf = (l: Line) => `${l.page}:${l.column ?? 0}`;
+    for (const l of lines) {
+      marginBy.set(keyOf(l), Math.min(marginBy.get(keyOf(l)) ?? Infinity, l.x));
+    }
     for (const line of lines) {
+      const margin = marginBy.get(keyOf(line)) ?? 0;
       const isStart =
         line.x <= margin + 2 &&
         (groups.length === 0 || looksLikeEntryStart(line.text));
@@ -110,7 +118,13 @@ export function segmentReferences(lines: Line[]): SegmentResult {
 
 /** Author-name-like or year-bearing starts mark new hanging-indent entries. */
 function looksLikeEntryStart(text: string): boolean {
-  return /^[A-Z][\p{L}'’-]+,?\s/u.test(text);
+  // "Surname, I." (surname-first)
+  if (/^[A-Z][\p{L}'’-]+,?\s/u.test(text)) return true;
+  // "J. Austin" / "Y. Bai, S. Tu" (initials-first, natbib style)
+  if (/^([A-Z]\.[\s-]?)+[A-Z][\p{L}'’-]+/u.test(text)) return true;
+  // "AI@Meta. Llama 3 ..." / "Anthropic. Claude ..." (organization authors)
+  if (/^[A-Z][\w@&'’-]{1,40}\.\s+[A-Z0-9]/u.test(text)) return true;
+  return false;
 }
 
 function validateSequence(

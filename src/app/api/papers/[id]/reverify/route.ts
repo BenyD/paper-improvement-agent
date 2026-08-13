@@ -26,7 +26,10 @@ export async function POST(
     return NextResponse.json({ ok: true, healed: 0, remaining: 0 });
   }
 
-  const updated = await resolveCitations(doc, { onlyUnverified: true });
+  const updated = await resolveCitations(doc, {
+    onlyUnverified: true,
+    timeBudgetMs: 120_000,
+  });
   await saveDocumentVersion(updated);
 
   const remaining = updated.citations.entries.filter(

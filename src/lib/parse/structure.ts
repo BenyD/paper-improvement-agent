@@ -107,7 +107,41 @@ export function detectStructure(extract: PdfExtract): DocumentStructure {
       /^abstract\b/i.test(text) ||
       (text === "" && /^abstract\b/i.test(lines[index].text))
     ) {
-      abstract = body.join("\n\n");
+      // First-page figures bleed chart data into the abstract region (axis
+      // labels, benchmark numbers). Cut at the first debris paragraph: an
+      // abstract is prose, and everything after the bleed starts is figure.
+      const debrisAt = body.findIndex(isNumericDebris);
+      const kept = debrisAt === -1 ? body : body.slice(0, debrisAt);
+      if (debrisAt !== -1) {
+        // Chart legends fragment into short paragraphs too small for the
+        // debris ratio ("DeepSeek-V3 Qwen2.5 100", "90.2"). With debris
+        // confirmed adjacent, pop trailing non-prose paragraphs, then cut
+        // any glued numeric tail after the last sentence terminator.
+        while (kept.length > 0) {
+          const last = kept[kept.length - 1].trim();
+          if (/[.!?]$/.test(last) && last.split(/\s+/).length >= 8) break;
+          kept.pop();
+        }
+        const last = kept.at(-1);
+        const m = last?.match(/^([\s\S]*[.!?])\s+([^.!?]+)$/);
+        if (last && m) {
+          const tail = m[2].split(/\s+/);
+          const numeric = tail.filter((t) => /^[\d.,%]+$/.test(t)).length;
+          if (tail.length >= 3 && numeric / tail.length >= 0.3) {
+            kept[kept.length - 1] = m[1];
+          }
+        }
+      }
+      abstract = kept.join("\n\n");
+      if (debrisAt !== -1) {
+        failures.push({
+          stage: "structure",
+          code: "abstract-figure-bleed",
+          message:
+            "Figure data adjacent to the abstract was cut from it (chart labels/numbers are not prose).",
+          context: body.slice(debrisAt).join(" ").slice(0, 160),
+        });
+      }
       continue;
     }
     sections.push({
@@ -185,7 +219,24 @@ export function classifyHeading(
   if (CAPTION.test(text)) return null; // captions are furniture, not structure
   const larger = line.fontSize >= bodySize * 1.05;
 
+  // IEEE convention: Roman numeral, period, ALL-CAPS title at body size
+  // ("I. INTRODUCTION"). The dot and caps-only title distinguish this from
+  // figure text like "C T1", which the arabic-only rule below rejects.
+  if (/^[IVXLC]{1,7}\.\s+[A-Z][A-Z\s,:&-]{2,70}$/.test(text)) {
+    return { level: 1, text, kind: "numbered" };
+  }
+
   const numbered = text.match(NUMBERED);
+  // Years, DOI fragments and other large numbers are not section numbers:
+  // "2018. URL ..." and "7.3476145. URL ..." are wrapped reference lines.
+  // Real section numbers keep every dotted component small.
+  if (
+    numbered?.[1]
+      .split(".")
+      .some((part) => /^\d+$/.test(part) && Number(part) > 99)
+  ) {
+    return null;
+  }
   if (numbered) {
     const num = numbered[1];
     const level = num.includes(".") ? num.split(".").length : 1;
@@ -225,6 +276,16 @@ export function classifyHeading(
   }
 
   return null;
+}
+
+/** Chart/table fragments: mostly numbers and tiny tokens, not prose. */
+function isNumericDebris(text: string): boolean {
+  const tokens = text.split(/\s+/);
+  if (tokens.length < 4) return false;
+  const dataish = tokens.filter(
+    (t) => /^[\d.,()%×±\-–|]+$/.test(t) || t.length <= 2,
+  ).length;
+  return dataish / tokens.length >= 0.6;
 }
 
 /**

@@ -134,8 +134,16 @@ export function computePaperYear(
  */
 export async function resolveCitations(
   doc: PaperDocument,
-  opts: { onlyUnverified?: boolean } = {},
+  opts: { onlyUnverified?: boolean; timeBudgetMs?: number } = {},
 ): Promise<PaperDocument> {
+  // Title searches are throttled (per-host spacing + 429 backoff), so a
+  // reference-heavy paper can take many minutes. The budget bounds the slow
+  // tail: batch lookups always run, and entries the budget cannot reach stay
+  // honestly unverified with a note — Retry verification heals them later.
+  const deadline =
+    opts.timeBudgetMs !== undefined
+      ? Date.now() + opts.timeBudgetMs
+      : Number.POSITIVE_INFINITY;
   const entries = [...doc.citations.entries];
   const fields = entries.map((e) => extractEntryFields(e.rawText));
   // Re-verification mode touches only entries that are not yet verified —
@@ -208,9 +216,12 @@ export async function resolveCitations(
   const leftovers = [...pending];
   const CONCURRENCY = 4;
   let next = 0;
+  const processed = new Set<number>();
   async function worker(): Promise<void> {
     while (next < leftovers.length) {
+      if (Date.now() > deadline) return;
       const i = leftovers[next++];
+      processed.add(i);
       const resolved = await resolveByTitle(
         entries[i].id,
         fields[i].csl,
@@ -228,5 +239,28 @@ export async function resolveCitations(
     Array.from({ length: Math.min(CONCURRENCY, leftovers.length) }, worker),
   );
 
-  return { ...doc, citations: { ...doc.citations, entries } };
+  const deferred = leftovers.filter((i) => !processed.has(i));
+  for (const i of deferred) {
+    entries[i] = {
+      ...entries[i],
+      resolution: {
+        ...entries[i].resolution,
+        note: "Not verified yet: resolution paused at the upload time budget. Retry verification resolves the rest.",
+      },
+    };
+  }
+  // Idempotent across re-verification runs: drop any previous time-budget
+  // notice, then re-add one only if entries are still deferred.
+  const failures = doc.failures.filter(
+    (f) => !(f.stage === "resolve" && f.code === "time-budget"),
+  );
+  if (deferred.length > 0) {
+    failures.push({
+      stage: "resolve",
+      code: "time-budget",
+      message: `${deferred.length} reference(s) not verified yet: the academic APIs were slow (rate limits), so resolution paused at the time budget. Retry verification resolves them in place.`,
+    });
+  }
+
+  return { ...doc, failures, citations: { ...doc.citations, entries } };
 }

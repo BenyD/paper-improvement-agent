@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const parsed = await parsePaper(bytes, file.name);
     // Verify citations against OpenAlex/Semantic Scholar. A total outage still
     // yields a usable document — entries just stay honestly "unverified".
-    const doc = await resolveCitations(parsed);
+    const doc = await resolveCitations(parsed, { timeBudgetMs: 90_000 });
     await savePaper(doc, bytes);
     return NextResponse.json({ id: doc.id, failures: doc.failures.length });
   } catch (err) {

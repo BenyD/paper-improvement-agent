@@ -19,7 +19,7 @@ export function InlineIssues({ failures }: { failures: Failure[] }) {
             className="mt-0.5 size-3.5 shrink-0 text-(--warning)"
             aria-hidden
           />
-          <span>
+          <span className="min-w-0 flex-1">
             {f.message}
             {f.context && (
               <span className="block truncate font-mono text-xs text-muted-foreground">
@@ -48,6 +48,7 @@ export function issuesFor(
     segment: "references",
     "parse-entry": "citations",
     "link-markers": "citations",
+    resolve: "citations",
   };
   return failures.filter((f) => map[f.stage] === region);
 }
