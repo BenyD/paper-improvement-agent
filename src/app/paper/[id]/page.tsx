@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EditorPanel } from "@/features/editor/EditorPanel";
 import { ParseView } from "@/features/parse-view/ParseView";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
-import { loadPaper, loadReview } from "@/lib/storage/papers";
+import { listProposals, loadPaper, loadReview } from "@/lib/storage/papers";
 
 export default async function PaperPage({
   params,
@@ -13,6 +14,7 @@ export default async function PaperPage({
   const doc = await loadPaper(id);
   if (!doc) notFound();
   const review = await loadReview(id);
+  const proposals = await listProposals(id);
 
   return (
     <main className="min-h-screen">
@@ -26,6 +28,7 @@ export default async function PaperPage({
       </nav>
       <ParseView doc={doc}>
         <ReviewPanel paperId={doc.id} initialReview={review} />
+        <EditorPanel doc={doc} pastProposals={proposals} />
       </ParseView>
     </main>
   );

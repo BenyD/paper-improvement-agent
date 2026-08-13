@@ -84,14 +84,17 @@ Every model call goes through one `structured()` entry point (forced tool-use + 
 
 ### Editing (tool-use agent — unpredictable path)
 
-<!-- As implemented: command → agent loop with typed tools (one per file, eve-style),
-     propose_edit emits typed EditOps against the document model, never freeform text. -->
+As implemented (`src/lib/agent/edit/`): a hand-rolled Anthropic tool-use loop (max 10 turns) with three tools — `search_papers`, `propose_edit`, `finish_without_edit` — and the full document (sections with stable ids and original paragraph indices, plus the reference library) as a **prompt-cached system block**, paid once per session rather than per turn.
+
+A command becomes actions like this: the model reads the cached document context, optionally calls `search_papers` (year-filtered to work the paper could have cited, deduped against existing references, results assigned `candidateId`s), and finishes by calling `propose_edit` with typed operations: `replace_paragraph`, `insert_paragraph`, `delete_paragraph`, `edit_heading`, `add_reference`. Citations are not a separate operation — markers live inline in the text ("[41]", "(Smith, 2020)") and are re-linked by the same P6 linker the parser uses, so the integrity check sees exactly what a re-parse would see.
+
+Two structural guarantees are enforced by the loop itself, not by prompting:
+- **Sources can only come from tool results.** `add_reference` accepts a `candidateId` from this session's own searches; the loop translates it to the real CSL record. A source the agent never retrieved cannot be added — fabrication is structurally impossible, not merely discouraged.
+- **Validation happens inside the loop.** `propose_edit` runs the invariant validator; violations return as tool errors the model must fix. An op set that would lose a citation never reaches the user. When the search APIs are rate-limited, the tool result says so and instructs the model to finish honestly rather than retry-loop.
 
 ### Citation integrity (the non-negotiable)
 
-The LLM proposes; code enforces; the user approves. `propose_edit` output is validated by a deterministic invariant checker before it can touch the document: the citation multiset must survive every op set (removals only via an explicit user-approved op), and any inserted citation must reference an already-resolved CSL entry. Violations reject the edit with a reason — they are not repairable by prompting because the check is not a prompt.
-
-<!-- As implemented: EditOp types, validator rules, test cases. -->
+The LLM proposes; code enforces; the user approves. `validateOps` (`src/lib/doc/invariants.ts`) rejects any op set where: a previously-cited reference would no longer be cited anywhere (set semantics — no reference loses its last citation; explicit removal is not an operation this system offers), the edited text cites a marker that resolves to no entry (fabrication), a new reference is not verified against a real source, an entry would disappear, or the ops are structurally unsound (bad section/paragraph, conflicting targets). It runs twice: inside the agent loop at proposal time, and again at approval time against the current document. Violations are not repairable by prompting because the check is not a prompt. The validator has its own test suite covering the drop/move/delete/fabricate/unverified cases; approval archives the previous document version before applying.
 
 ### External APIs
 

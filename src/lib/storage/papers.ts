@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ReviewResult } from "../agent/review/types";
+import type { EditProposal } from "../doc/ops";
 import type { PaperDocument } from "../doc/types";
 
 const DATA_DIR = path.join(process.cwd(), "data", "papers");
@@ -67,6 +68,70 @@ export async function listPapers(limit = 20): Promise<PaperListing[]> {
   return listings
     .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
     .slice(0, limit);
+}
+
+export async function saveProposal(
+  paperId: string,
+  proposal: EditProposal,
+): Promise<void> {
+  const dir = path.join(paperDir(paperId), "edits");
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    path.join(dir, `${proposal.id}.json`),
+    JSON.stringify(proposal, null, 2),
+  );
+}
+
+export async function loadProposal(
+  paperId: string,
+  editId: string,
+): Promise<EditProposal | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(editId)) return null;
+  try {
+    const raw = await readFile(
+      path.join(paperDir(paperId), "edits", `${editId}.json`),
+      "utf8",
+    );
+    return JSON.parse(raw) as EditProposal;
+  } catch {
+    return null;
+  }
+}
+
+export async function listProposals(paperId: string): Promise<EditProposal[]> {
+  try {
+    const files = await readdir(path.join(paperDir(paperId), "edits"));
+    const proposals: EditProposal[] = [];
+    for (const f of files.filter((f) => f.endsWith(".json"))) {
+      const raw = await readFile(
+        path.join(paperDir(paperId), "edits", f),
+        "utf8",
+      );
+      proposals.push(JSON.parse(raw) as EditProposal);
+    }
+    return proposals.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } catch {
+    return [];
+  }
+}
+
+/** Replace the live document, archiving the previous version first. */
+export async function saveDocumentVersion(doc: PaperDocument): Promise<void> {
+  const dir = paperDir(doc.id);
+  const current = await loadPaper(doc.id);
+  if (current) {
+    const historyDir = path.join(dir, "history");
+    await mkdir(historyDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await writeFile(
+      path.join(historyDir, `document-${stamp}.json`),
+      JSON.stringify(current, null, 2),
+    );
+  }
+  await writeFile(
+    path.join(dir, "document.json"),
+    JSON.stringify(doc, null, 2),
+  );
 }
 
 export async function saveReview(
