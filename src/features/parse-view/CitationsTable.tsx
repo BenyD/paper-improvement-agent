@@ -67,9 +67,12 @@ function ResolutionBadge({ entry }: { entry: ReferenceEntry }) {
       </Badge>
     );
   }
+  // Icon-only: "unverified" repeated down a column is noise. The tooltip
+  // carries the specific reason; the label stays for screen readers.
   return (
-    <Badge variant="secondary" title={resolution.note}>
-      <CircleHelp aria-hidden /> unverified
+    <Badge variant="secondary" title={resolution.note ?? "Unverified"}>
+      <CircleHelp aria-hidden />
+      <span className="sr-only">unverified</span>
     </Badge>
   );
 }
