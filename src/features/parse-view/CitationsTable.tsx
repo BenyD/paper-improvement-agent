@@ -14,6 +14,12 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -106,6 +112,7 @@ const INITIAL_ROWS = 25;
 export function CitationsTable({ doc }: { doc: PaperDocument }) {
   const { entries, markers, citationStyle, entryStyle } = doc.citations;
   const [showAll, setShowAll] = useState(false);
+  const [selected, setSelected] = useState<ReferenceEntry | null>(null);
   const visible =
     showAll || entries.length <= INITIAL_ROWS
       ? entries
@@ -218,7 +225,11 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
             </TableHeader>
             <TableBody>
               {visible.map((entry, i) => (
-                <TableRow key={entry.id}>
+                <TableRow
+                  key={entry.id}
+                  onClick={() => setSelected(entry)}
+                  className="cursor-pointer"
+                >
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {entry.marker ?? i + 1}
                   </TableCell>
@@ -246,7 +257,8 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  {/* Keep source-link clicks from also opening the modal. */}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <ResolutionBadge entry={entry} />
                   </TableCell>
                 </TableRow>
@@ -273,6 +285,99 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
           )}
         </div>
       )}
+
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="pr-6 leading-snug">
+                  {selected.csl.title ?? "(no title parsed)"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ResolutionBadge entry={selected} />
+                {selected.marker && (
+                  <Badge variant="outline" className="font-mono">
+                    [{selected.marker}]
+                  </Badge>
+                )}
+                {selected.csl.issued?.["date-parts"]?.[0]?.[0] && (
+                  <Badge variant="outline">
+                    {selected.csl.issued["date-parts"][0][0]}
+                  </Badge>
+                )}
+                <Badge variant="outline">
+                  Cited{" "}
+                  {markers.filter((m) => m.targets.includes(selected.id))
+                    .length || "0"}{" "}
+                  time
+                  {markers.filter((m) => m.targets.includes(selected.id))
+                    .length === 1
+                    ? ""
+                    : "s"}
+                </Badge>
+              </div>
+              <dl className="flex flex-col gap-2 text-sm">
+                {(selected.csl.author?.length ?? 0) > 0 && (
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Authors
+                    </dt>
+                    <dd>
+                      {selected.csl.author
+                        ?.map(
+                          (a) =>
+                            a.literal ??
+                            [a.given, a.family].filter(Boolean).join(" "),
+                        )
+                        .join(", ")}
+                    </dd>
+                  </div>
+                )}
+                {selected.csl["container-title"] && (
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Venue
+                    </dt>
+                    <dd>{selected.csl["container-title"]}</dd>
+                  </div>
+                )}
+                {selected.csl.DOI && (
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      DOI
+                    </dt>
+                    <dd className="font-mono text-xs">{selected.csl.DOI}</dd>
+                  </div>
+                )}
+                {selected.resolution.status !== "verified" &&
+                  selected.resolution.note && (
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Why not verified
+                      </dt>
+                      <dd className="text-muted-foreground">
+                        {selected.resolution.note}
+                      </dd>
+                    </div>
+                  )}
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    As extracted from the PDF
+                  </dt>
+                  <dd className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted/50 px-2.5 py-2 font-mono text-xs leading-relaxed text-muted-foreground">
+                    {selected.rawText}
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
