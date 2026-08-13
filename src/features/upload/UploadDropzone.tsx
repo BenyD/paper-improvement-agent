@@ -77,8 +77,13 @@ export function UploadDropzone() {
               className="size-8 animate-spin text-muted-foreground"
               aria-hidden
             />
-            <span className="text-lg font-medium">Parsing {state.name}…</span>
-            <span className="text-sm text-muted-foreground">
+            <span
+              className="max-w-full truncate text-lg font-medium"
+              title={state.name}
+            >
+              Parsing {state.name}…
+            </span>
+            <span className="max-w-md text-center text-sm text-muted-foreground">
               Extracting structure, linking citations, and verifying references
               against OpenAlex and Semantic Scholar. Takes about 30 seconds.
             </span>
