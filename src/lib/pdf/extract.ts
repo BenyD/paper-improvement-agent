@@ -77,11 +77,12 @@ export async function extractPdf(bytes: Uint8Array): Promise<PdfExtract> {
         });
       }
 
-      const lines = groupIntoLines(spans, pageNum);
-      const columns = detectColumns(lines, viewport.width);
-      for (const line of lines) {
-        line.column = columns === 2 && line.x > viewport.width / 2 ? 1 : 0;
-      }
+      const rawLines = groupIntoLines(spans, pageNum);
+      const { lines, columns } = splitByColumns(
+        rawLines,
+        viewport.width,
+        pageNum,
+      );
       allLines.push(...sortReadingOrder(lines));
       pages.push({ width: viewport.width, height: viewport.height, columns });
     } catch (err) {
@@ -124,25 +125,8 @@ function groupIntoLines(spans: TextSpan[], page: number): Line[] {
   let baseline = 0;
 
   const flush = () => {
-    if (current.length === 0) return;
-    current.sort((s1, s2) => s1.x - s2.x);
-    const fontSize = dominantFontSize(current);
-    const text = joinSpans(current, fontSize);
-    if (text.trim() !== "") {
-      // The line's anchor is its baseline span (largest font), not a
-      // superscript that may have sorted first.
-      const anchor =
-        current.find((s) => s.fontSize >= fontSize * 0.95) ?? current[0];
-      lines.push({
-        text,
-        x: current[0].x,
-        y: anchor.y,
-        page,
-        fontSize,
-        column: 0,
-        spans: current,
-      });
-    }
+    const line = makeLine(current, page);
+    if (line) lines.push(line);
     current = [];
   };
 
@@ -210,20 +194,94 @@ function dominantFontSize(spans: TextSpan[]): number {
 }
 
 /**
- * Two-column detection: count body lines starting in the left third vs those
- * starting just past the midline. A substantial right-start cluster (>25% of
- * lines) marks a two-column page.
+ * Two-column handling. Y-grouping alone merges text from BOTH columns into
+ * one line (left and right column words share a baseline), which garbles
+ * two-column papers end to end — most fatally the reference list. Per line:
+ *  - a span STRADDLING the midline marks a genuine full-width line;
+ *  - spans on both sides with a clear gutter gap around the midline mark two
+ *    merged column lines, split into one line per column;
+ *  - spans on one side only belong to that column.
+ * A page is two-column when a substantial share of its lines show gutter or
+ * right-only evidence; only then is the split applied.
  */
-function detectColumns(lines: Line[], pageWidth: number): 1 | 2 {
-  if (lines.length < 8) return 1;
+function splitByColumns(
+  rawLines: Line[],
+  pageWidth: number,
+  page: number,
+): { lines: Line[]; columns: 1 | 2 } {
   const mid = pageWidth / 2;
-  const leftStarts = lines.filter((l) => l.x < pageWidth * 0.35).length;
-  const rightStarts = lines.filter(
-    (l) => l.x > mid * 0.95 && l.x < pageWidth * 0.75,
+  const GUTTER = 10;
+
+  type Analysis = {
+    line: Line;
+    left: TextSpan[];
+    right: TextSpan[];
+    crossing: boolean;
+    gutterGap: number;
+  };
+  const analyses: Analysis[] = rawLines.map((line) => {
+    const left = line.spans.filter((s) => s.x < mid);
+    const right = line.spans.filter((s) => s.x >= mid);
+    const crossing = line.spans.some(
+      (s) => s.x < mid - 2 && s.x + s.width > mid + 2,
+    );
+    const leftEnd = left.length
+      ? Math.max(...left.map((s) => s.x + s.width))
+      : 0;
+    const rightStart = right.length ? Math.min(...right.map((s) => s.x)) : 0;
+    const gutterGap =
+      left.length && right.length && !crossing ? rightStart - leftEnd : 0;
+    return { line, left, right, crossing, gutterGap };
+  });
+
+  const evidence = analyses.filter(
+    (a) =>
+      (a.left.length > 0 && a.right.length > 0 && a.gutterGap >= GUTTER) ||
+      (a.left.length === 0 && a.right.length > 0),
   ).length;
-  return rightStarts >= lines.length * 0.25 && leftStarts >= lines.length * 0.25
-    ? 2
-    : 1;
+  const columns: 1 | 2 =
+    rawLines.length >= 8 && evidence >= rawLines.length * 0.25 ? 2 : 1;
+
+  if (columns === 1) return { lines: rawLines, columns };
+
+  const lines: Line[] = [];
+  for (const a of analyses) {
+    if (
+      !a.crossing &&
+      a.left.length > 0 &&
+      a.right.length > 0 &&
+      a.gutterGap >= GUTTER
+    ) {
+      const leftLine = makeLine(a.left, page);
+      const rightLine = makeLine(a.right, page);
+      if (leftLine) lines.push({ ...leftLine, column: 0 });
+      if (rightLine) lines.push({ ...rightLine, column: 1 });
+    } else if (a.left.length === 0 && a.right.length > 0) {
+      lines.push({ ...a.line, column: 1 });
+    } else {
+      lines.push({ ...a.line, column: 0 });
+    }
+  }
+  return { lines, columns };
+}
+
+/** Build one Line from x-sorted spans (shared by grouping and splitting). */
+function makeLine(spans: TextSpan[], page: number): Line | null {
+  if (spans.length === 0) return null;
+  const sorted = [...spans].sort((s1, s2) => s1.x - s2.x);
+  const fontSize = dominantFontSize(sorted);
+  const text = joinSpans(sorted, fontSize);
+  if (text.trim() === "") return null;
+  const anchor = sorted.find((s) => s.fontSize >= fontSize * 0.95) ?? sorted[0];
+  return {
+    text,
+    x: sorted[0].x,
+    y: anchor.y,
+    page,
+    fontSize,
+    column: 0,
+    spans: sorted,
+  };
 }
 
 function sortReadingOrder(lines: Line[]): Line[] {

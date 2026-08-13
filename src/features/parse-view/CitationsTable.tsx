@@ -102,54 +102,69 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
         )}
       </p>
       <InlineIssues failures={issuesFor(doc.failures, "citations")} />
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="w-10">#</TableHead>
-              <TableHead className="hidden sm:table-cell">Authors</TableHead>
-              <TableHead className="min-w-48">Title</TableHead>
-              <TableHead className="w-14">Year</TableHead>
-              <TableHead className="hidden w-14 md:table-cell">Cited</TableHead>
-              <TableHead>Source</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entries.map((entry) => (
-              <TableRow key={entry.id}>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {entry.marker ?? "•"}
-                </TableCell>
-                <TableCell className="hidden max-w-40 truncate whitespace-nowrap sm:table-cell">
-                  {formatAuthors(entry)}
-                </TableCell>
-                <TableCell className="max-w-md">
-                  <span className="line-clamp-2" title={entry.rawText}>
-                    {entry.csl.title ?? (
-                      <em className="text-muted-foreground">no title parsed</em>
-                    )}
-                  </span>
-                </TableCell>
-                <TableCell className="font-mono text-xs">
-                  {entry.csl.issued?.["date-parts"]?.[0]?.[0] ?? "—"}
-                </TableCell>
-                <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
-                  {citedIds.has(entry.id) ? (
-                    markers.filter((m) => m.targets.includes(entry.id)).length
-                  ) : (
-                    <span className="text-amber-600 dark:text-amber-400">
-                      never
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <ResolutionBadge entry={entry} />
-                </TableCell>
+      {entries.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-10 text-center">
+          <BookMarked className="size-5 text-muted-foreground" aria-hidden />
+          <p className="text-sm font-medium">No reference entries parsed</p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            The reference list could not be segmented from this PDF, so there is
+            nothing to verify yet. The issues above explain what the parser saw.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="w-10">#</TableHead>
+                <TableHead className="hidden sm:table-cell">Authors</TableHead>
+                <TableHead className="min-w-48">Title</TableHead>
+                <TableHead className="w-14">Year</TableHead>
+                <TableHead className="hidden w-14 md:table-cell">
+                  Cited
+                </TableHead>
+                <TableHead>Source</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {entry.marker ?? "•"}
+                  </TableCell>
+                  <TableCell className="hidden max-w-40 truncate whitespace-nowrap sm:table-cell">
+                    {formatAuthors(entry)}
+                  </TableCell>
+                  <TableCell className="max-w-md">
+                    <span className="line-clamp-2" title={entry.rawText}>
+                      {entry.csl.title ?? (
+                        <em className="text-muted-foreground">
+                          no title parsed
+                        </em>
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {entry.csl.issued?.["date-parts"]?.[0]?.[0] ?? "—"}
+                  </TableCell>
+                  <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
+                    {citedIds.has(entry.id) ? (
+                      markers.filter((m) => m.targets.includes(entry.id)).length
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        never
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <ResolutionBadge entry={entry} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </section>
   );
 }

@@ -27,7 +27,10 @@ export default async function PaperPage({
 
   return (
     <div className="flex flex-col lg:h-dvh lg:flex-row">
-      <main className="min-w-0 flex-1 lg:overflow-y-auto">
+      {/* relative: scroll containers must be containing blocks, or absolutely
+          positioned descendants (e.g. Tailwind sr-only) escape the overflow
+          clip and stretch the page past h-dvh */}
+      <main className="relative min-w-0 flex-1 lg:overflow-y-auto">
         <ParseView doc={doc} />
       </main>
       <aside

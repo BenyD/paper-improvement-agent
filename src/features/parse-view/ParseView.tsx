@@ -124,8 +124,8 @@ export function ParseView({ doc }: { doc: PaperDocument }) {
         >
           <FileText className="size-4" aria-hidden />
           Raw reference region
-          {doc.references.heading && ` "${doc.references.heading}"`}, page{" "}
-          {doc.references.startPage}
+          {doc.references.heading && ` "${doc.references.heading}"`}
+          {doc.references.startPage > 0 && `, page ${doc.references.startPage}`}
         </h2>
         <InlineIssues failures={issuesFor(doc.failures, "references")} />
         {doc.references.rawLines.length === 0 ? (

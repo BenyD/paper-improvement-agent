@@ -167,7 +167,7 @@ export function EditorPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="relative flex-1 overflow-y-auto px-4 py-4">
         {thread.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-muted">
