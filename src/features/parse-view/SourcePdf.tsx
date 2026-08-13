@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, FileText } from "lucide-react";
+import { ExternalLink, FileText, X } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -58,22 +58,32 @@ export function SourcePdfPane({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Source PDF
           </span>
-          <a
-            href={`/api/papers/${paperId}/pdf`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Open in a new tab
-            <ExternalLink className="size-3" aria-hidden />
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href={`/api/papers/${paperId}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Open in a new tab
+              <ExternalLink className="size-3" aria-hidden />
+            </a>
+            <button
+              type="button"
+              onClick={ctx.toggle}
+              aria-label="Hide source PDF"
+              className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="size-3.5" aria-hidden />
+            </button>
+          </div>
         </div>
         {/* Chrome PDF-viewer open parameters: no toolbar, no side panes,
             zoom to page width — the pane is for reading, not managing. */}
         <iframe
           title={`Original PDF: ${filename}`}
           src={`/api/papers/${paperId}/pdf#toolbar=0&navpanes=0&view=FitH`}
-          className="w-full flex-1 rounded-xl border border-border bg-muted"
+          className="w-full flex-1 border border-border bg-muted"
         />
       </div>
     </div>
