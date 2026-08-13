@@ -30,6 +30,7 @@ export function ReverifyButton({
         ok?: boolean;
         healed?: number;
         remaining?: number;
+        rateLimited?: boolean;
         error?: string;
       };
       if (!json.ok) {
@@ -47,10 +48,15 @@ export function ReverifyButton({
           },
         );
         router.refresh();
-      } else {
-        toast.warning("No change", {
+      } else if (json.rateLimited) {
+        toast.warning("Still rate limited", {
           description:
-            "The academic APIs may still be rate-limited. Try again later.",
+            "The academic APIs refused these lookups. Retrying later picks up exactly where this left off.",
+        });
+      } else {
+        toast.warning("No new matches", {
+          description:
+            "The remaining entries could not be matched to a known work.",
         });
       }
     } catch {
@@ -63,7 +69,7 @@ export function ReverifyButton({
   };
 
   return (
-    <Button variant="outline" onClick={run} disabled={busy} className="w-full">
+    <Button variant="outline" size="sm" onClick={run} disabled={busy}>
       {busy ? (
         <Loader2 className="animate-spin" aria-hidden />
       ) : (

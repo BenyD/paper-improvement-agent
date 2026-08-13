@@ -134,10 +134,12 @@ export function linkMarkers(
 
   const orphanCount = markers.filter((m) => m.unresolved.length > 0).length;
   if (orphanCount > 0) {
+    const cites = [...new Set(markers.flatMap((m) => m.unresolved))];
     failures.push({
       stage: "link-markers",
       code: "orphan-markers",
       message: `${orphanCount} in-text marker${orphanCount === 1 ? " cites" : "s cite"} entries that could not be found in the reference list.`,
+      context: cites.slice(0, 40).join("\n"),
     });
   }
 
@@ -149,9 +151,12 @@ export function linkMarkers(
       code: "uncited-references",
       message: `${uncited.length} reference entr${uncited.length === 1 ? "y is" : "ies are"} never cited in the text.`,
       context: uncited
-        .slice(0, 5)
-        .map((r) => r.marker ?? r.csl.title ?? r.rawText.slice(0, 60))
-        .join(" | "),
+        .slice(0, 40)
+        .map(
+          (r) =>
+            `[${r.marker ?? "?"}] ${r.csl.title ?? r.rawText.slice(0, 80)}`,
+        )
+        .join("\n"),
     });
   }
 

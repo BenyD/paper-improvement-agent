@@ -32,8 +32,17 @@ export async function POST(
   });
   await saveDocumentVersion(updated);
 
-  const remaining = updated.citations.entries.filter(
+  const unverified = updated.citations.entries.filter(
     (e) => e.resolution.status !== "verified",
-  ).length;
-  return NextResponse.json({ ok: true, healed: before - remaining, remaining });
+  );
+  // Definitive cause when we have it: notes carry the real API outcome.
+  const rateLimited = unverified.some((e) =>
+    /rate.?limit|429|time budget/i.test(e.resolution.note ?? ""),
+  );
+  return NextResponse.json({
+    ok: true,
+    healed: before - unverified.length,
+    remaining: unverified.length,
+    rateLimited,
+  });
 }
