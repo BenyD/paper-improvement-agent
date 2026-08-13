@@ -183,9 +183,9 @@ export function CitationsTable({ doc }: { doc: PaperDocument }) {
                     {citedIds.has(entry.id) ? (
                       markers.filter((m) => m.targets.includes(entry.id)).length
                     ) : (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        uncited
-                      </span>
+                      <Badge className="bg-(--warning)/10 text-(--warning)">
+                        Uncited
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell>
