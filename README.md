@@ -62,5 +62,5 @@ This project was built with Claude Code (Claude Fable 5) driving implementation,
 - Claim checking against full texts (DeepSciVerify-style escalation) instead of abstracts only.
 - Vendored `.csl` style files (IEEE, ACM) beyond citation-js's bundled APA/Vancouver/Harvard, with user style pick in the export panel.
 - An end-to-end PDF fixture test (a small committed LaTeX-built paper) exercising P1→P6 in CI.
-- ML-based reference parsing (GROBID/anystyle-class) for wild citation styles, layered under the same verification pipeline.
+- ML-based reference parsing (GROBID/anystyle-class) for wild citation styles, layered under the same verification pipeline. Firecrawl's open-source pdf-inspector (Rust, multi-column aware, scanned-PDF detection) is a candidate P1 replacement for production — though its markdown output would need span-level layout retained for marker linking, which is why P1 stays custom here.
 - Batch API for offline bulk review of many papers; the agent layer ports cleanly to eve or Cloudflare's Agents SDK if durable sessions were ever needed.
