@@ -249,15 +249,15 @@ export function EditorPanel({
                           size="sm"
                           onClick={() => void decide(item.proposal, "approve")}
                           disabled={busy}
-                          className="bg-(--success) text-white hover:bg-(--success)/85"
+                          className="bg-(--success)/15 text-(--success) hover:bg-(--success)/25"
                         >
                           <Check aria-hidden /> Approve
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => void decide(item.proposal, "reject")}
                           disabled={busy}
+                          className="bg-destructive/10 text-destructive hover:bg-destructive/20"
                         >
                           <X aria-hidden /> Reject
                         </Button>

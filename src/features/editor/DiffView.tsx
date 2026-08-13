@@ -14,14 +14,17 @@ function DiffText({ before, after }: { before: string; after: string }) {
           // biome-ignore lint/suspicious/noArrayIndexKey: static diff render
           <ins
             key={i}
-            className="rounded bg-emerald-100 px-0.5 no-underline dark:bg-emerald-900/50"
+            className="rounded-sm bg-emerald-50 px-0.5 text-emerald-900 no-underline dark:bg-emerald-950/60 dark:text-emerald-200"
           >
             {" "}
             {t.text}
           </ins>
         ) : (
           // biome-ignore lint/suspicious/noArrayIndexKey: static diff render
-          <del key={i} className="rounded bg-red-100 px-0.5 dark:bg-red-900/50">
+          <del
+            key={i}
+            className="rounded-sm bg-red-50 px-0.5 text-red-800/60 decoration-red-400/50 dark:bg-red-950/40 dark:text-red-300/60 dark:decoration-red-500/40"
+          >
             {" "}
             {t.text}
           </del>
