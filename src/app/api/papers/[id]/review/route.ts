@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { hasAnthropicKey } from "@/lib/agent/client";
 import { runReview } from "@/lib/agent/review/run";
 import type { ReviewEvent } from "@/lib/agent/review/types";
-import { loadPaper, saveReview } from "@/lib/storage/papers";
+import { loadPaper, loadReview, saveReview } from "@/lib/storage/papers";
 
 export const runtime = "nodejs";
 
@@ -25,6 +25,11 @@ export async function GET(
     );
   }
 
+  // An interrupted run left a checkpoint on disk: resume it instead of
+  // re-spending tokens on already-finished work. Complete reviews are not
+  // resumed; running again then means a fresh full pass.
+  const prior = await loadReview(id);
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
@@ -35,17 +40,26 @@ export async function GET(
           // client disconnected mid-stream; runReview sees req.signal.aborted
         }
       };
-      runReview(doc, emit, req.signal)
+      // close() throws if the client already disconnected the stream.
+      const close = () => {
+        try {
+          controller.close();
+        } catch {}
+      };
+      runReview(doc, emit, req.signal, {
+        prior,
+        checkpoint: (result) => saveReview(id, result),
+      })
         .then(async (result) => {
           await saveReview(id, result);
-          controller.close();
+          close();
         })
         .catch((err) => {
           emit({
             type: "error",
             message: err instanceof Error ? err.message : String(err),
           });
-          controller.close();
+          close();
         });
     },
   });

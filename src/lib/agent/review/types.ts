@@ -48,6 +48,15 @@ export interface ReviewResult {
   notes: string[];
   stats: ReviewStats;
   error?: string;
+  /**
+   * True while a run is in flight or was interrupted (refresh, crash).
+   * A partial review is checkpointed to disk as findings arrive, so the next
+   * run resumes from `completed` instead of re-spending tokens.
+   */
+  partial?: boolean;
+  /** Work units already finished: section ids (missing-work) and entry ids
+   *  (claim checks). Resume skips these. */
+  completed?: { sections: string[]; entries: string[] };
 }
 
 export type ReviewEvent =

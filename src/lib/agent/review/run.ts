@@ -31,12 +31,23 @@ import type { ReviewEvent, ReviewResult } from "./types";
  * Every finding carries a real, linkable source. Failures and empty results
  * are emitted as notes. Findings stream to the caller as they are produced.
  */
+export interface RunReviewOptions {
+  /** A checkpointed partial result from an interrupted run; resume skips
+   *  its `completed` work units instead of re-spending tokens. */
+  prior?: ReviewResult | null;
+  /** Called after each completed work unit with the current (partial)
+   *  result, so an interrupt loses at most one unit of work. */
+  checkpoint?: (result: ReviewResult) => Promise<void>;
+}
+
 export async function runReview(
   doc: PaperDocument,
   emit: (ev: ReviewEvent) => void,
   signal?: AbortSignal,
+  opts?: RunReviewOptions,
 ): Promise<ReviewResult> {
-  const result: ReviewResult = {
+  const prior = opts?.prior?.partial ? opts.prior : undefined;
+  const result: ReviewResult = prior ?? {
     id: randomUUID(),
     paperId: doc.id,
     model: modelId(),
@@ -45,23 +56,56 @@ export async function runReview(
     notes: [],
     stats: emptyStats(),
   };
+  result.partial = true;
+  result.completed ??= { sections: [], entries: [] };
+  const completed = result.completed;
+
+  // Serialize checkpoint writes so concurrent claim workers never interleave
+  // two half-written review.json files.
+  let checkpointChain = Promise.resolve();
+  const checkpoint = () => {
+    checkpointChain = checkpointChain
+      .then(() => opts?.checkpoint?.(result))
+      .catch(() => {});
+    return checkpointChain;
+  };
+  await checkpoint();
 
   const addFinding = (f: ReviewResult["findings"][number]) => {
     result.findings.push(f);
     emit({ type: "finding", finding: f });
   };
 
+  if (prior) {
+    emit({
+      type: "progress",
+      message: `Resuming interrupted review (${prior.findings.length} finding${prior.findings.length === 1 ? "" : "s"} restored)...`,
+    });
+    // Replay checkpointed findings so the client rebuilds the full list
+    // without any model calls.
+    for (const f of prior.findings) emit({ type: "finding", finding: f });
+  }
+
   // ---- Missing work ----
   try {
     const sections = reviewableSections(doc);
     result.stats.sectionsScanned = sections.length;
+    const pending = sections.filter(
+      (s) => !completed.sections.includes(s.sectionId),
+    );
+    if (pending.length < sections.length) {
+      result.notes.push(
+        `Resume: skipped ${sections.length - pending.length} already-scanned section(s).`,
+      );
+    }
     emit({
       type: "progress",
-      message: `Scanning ${sections.length} sections for missing citations...`,
+      message: `Scanning ${pending.length} sections for missing citations...`,
     });
 
-    const queries = await generateQueries(doc, sections);
-    result.stats.queriesRun = queries.length;
+    const queries =
+      pending.length > 0 ? await generateQueries(doc, pending) : [];
+    result.stats.queriesRun += queries.length;
 
     const bySection = new Map<string, string[]>();
     for (const q of queries) {
@@ -71,10 +115,13 @@ export async function runReview(
       ]);
     }
 
-    for (const section of sections) {
+    for (const section of pending) {
       if (signal?.aborted) break;
       const sectionQueries = bySection.get(section.sectionId) ?? [];
-      if (sectionQueries.length === 0) continue;
+      if (sectionQueries.length === 0) {
+        completed.sections.push(section.sectionId);
+        continue;
+      }
       emit({
         type: "progress",
         message: `Searching for work related to "${section.heading}"...`,
@@ -93,6 +140,8 @@ export async function runReview(
         result.notes.push(
           `"${section.heading}": search returned nothing new beyond the existing references.`,
         );
+        completed.sections.push(section.sectionId);
+        await checkpoint();
         continue;
       }
 
@@ -103,6 +152,8 @@ export async function runReview(
         );
       }
       for (const f of findings) addFinding(f);
+      completed.sections.push(section.sectionId);
+      await checkpoint();
     }
   } catch (err) {
     const message = `Missing-work review failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -113,14 +164,20 @@ export async function runReview(
   // ---- Claim / citation match ----
   try {
     const claims = collectClaims(doc);
-    const entries = checkableEntries(doc, claims);
+    const allEntries = checkableEntries(doc, claims);
+    const entries = allEntries.filter((e) => !completed.entries.includes(e.id));
+    if (entries.length < allEntries.length) {
+      result.notes.push(
+        `Resume: skipped ${allEntries.length - entries.length} already-checked entr${allEntries.length - entries.length === 1 ? "y" : "ies"}.`,
+      );
+    }
     const skipped = [...claims.keys()].filter(
-      (refId) => !entries.some((e) => e.id === refId),
+      (refId) => !allEntries.some((e) => e.id === refId),
     );
     result.stats.skippedNoAbstract = skipped.length;
-    if (skipped.length > 0) {
+    if (skipped.length > 0 && !prior) {
       result.notes.push(
-        `${skipped.length} cited entr${skipped.length === 1 ? "y" : "ies"} skipped claim-checking (no verified abstract available) — honesty over guessing.`,
+        `${skipped.length} cited entr${skipped.length === 1 ? "y" : "ies"} skipped claim-checking (no verified abstract available): honesty over guessing.`,
       );
     }
 
@@ -144,6 +201,9 @@ export async function runReview(
           result.stats.claimsSupported += supported;
           result.stats.mismatchesWithdrawn += withdrawn;
           for (const f of findings) addFinding(f);
+          // Failed entries stay unmarked so the next resume retries them.
+          completed.entries.push(entry.id);
+          await checkpoint();
         } catch (err) {
           result.notes.push(
             `Claim check failed for "${entry.csl.title ?? entry.id}": ${err instanceof Error ? err.message : String(err)}`,
@@ -160,9 +220,15 @@ export async function runReview(
     emit({ type: "error", message });
   }
 
-  if (signal?.aborted)
-    result.notes.push("Review aborted by the client; results are partial.");
+  if (signal?.aborted) {
+    result.notes.push(
+      "Review interrupted by the client; a checkpoint was saved and the next run resumes from it.",
+    );
+  } else {
+    result.partial = false;
+  }
   result.finishedAt = new Date().toISOString();
+  await checkpoint();
   emit({ type: "done", result });
   return result;
 }

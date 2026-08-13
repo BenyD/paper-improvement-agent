@@ -1,7 +1,13 @@
 "use client";
 
-import { ChevronRight, CircleCheck, Loader2, ScanSearch } from "lucide-react";
-import { useCallback, useState } from "react";
+import {
+  CircleAlert,
+  CircleCheck,
+  Info,
+  Loader2,
+  ScanSearch,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +34,29 @@ export function ReviewPanel({
   );
   const [result, setResult] = useState<ReviewResult | null>(initialReview);
   const [progress, setProgress] = useState<string>("");
+  const esRef = useRef<EventSource | null>(null);
+
+  // Close the stream if the panel unmounts mid-run (e.g. a router refresh
+  // from an approved edit) — the server checkpoints, so nothing is lost and
+  // the remounted panel shows a resumable state instead of a zombie run.
+  useEffect(() => () => esRef.current?.close(), []);
+
+  // A server refresh can deliver a fresher saved review than our local state
+  // (finished after a remount, healed by a resume elsewhere). Adopt it unless
+  // a run is streaming right now. The identity guard prevents update loops.
+  useEffect(() => {
+    if (!initialReview || phase === "running") return;
+    const newer =
+      !result ||
+      result.id !== initialReview.id ||
+      result.partial !== initialReview.partial ||
+      result.findings.length !== initialReview.findings.length;
+    if (newer) {
+      setResult(initialReview);
+      setFindings(initialReview.findings);
+      setPhase("done");
+    }
+  }, [initialReview, phase, result]);
 
   const start = useCallback(() => {
     setPhase("running");
@@ -36,6 +65,7 @@ export function ReviewPanel({
     setProgress("Starting review…");
 
     const es = new EventSource(`/api/papers/${paperId}/review`);
+    esRef.current = es;
     es.onmessage = (msg) => {
       const ev = JSON.parse(msg.data) as ReviewEvent;
       if (ev.type === "progress") setProgress(ev.message);
@@ -95,7 +125,7 @@ export function ReviewPanel({
 
       {phase === "error" && (
         <div className="mb-3 flex justify-end">
-          <Button onClick={start} variant="outline" size="sm">
+          <Button onClick={start} size="sm">
             <ScanSearch aria-hidden /> Try again
           </Button>
         </div>
@@ -104,29 +134,46 @@ export function ReviewPanel({
       {/* Live region: progress + incoming findings are announced politely. */}
       <output aria-live="polite" className="block">
         {phase === "running" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">{progress}</p>
-            {findings.length === 0 ? (
-              <div className="flex flex-col gap-3" aria-hidden>
-                <Skeleton className="h-24 w-full rounded-xl" />
-                <Skeleton className="h-24 w-full rounded-xl" />
-                <Skeleton className="h-24 w-2/3 rounded-xl" />
+          <div className="mb-4 flex flex-col gap-4">
+            {/* Echoes the idle empty state's icon disc, so pressing the
+                button reads as the same surface coming alive. */}
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                <ScanSearch
+                  className="size-4 animate-pulse text-muted-foreground"
+                  aria-hidden
+                />
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {findings.length} finding{findings.length === 1 ? "" : "s"} so
-                far…
-              </p>
-            )}
+              <p className="text-sm text-muted-foreground">{progress}</p>
+            </div>
+            <div className="flex flex-col gap-3" aria-hidden>
+              {findings.length === 0 ? (
+                <>
+                  <FindingSkeleton />
+                  <FindingSkeleton />
+                  <FindingSkeleton short />
+                </>
+              ) : (
+                <FindingSkeleton short />
+              )}
+            </div>
           </div>
         )}
       </output>
 
       {(phase === "done" || findings.length > 0) && (
         <div className="flex flex-col gap-6">
+          {result?.partial && phase !== "running" && (
+            <p className="flex items-center gap-2 rounded-lg bg-(--warning)/10 px-3 py-2 text-xs text-(--warning)">
+              <CircleAlert className="size-3.5 shrink-0" aria-hidden />
+              This review was interrupted before finishing. Resuming picks up
+              from the saved checkpoint without re-checking finished work.
+            </p>
+          )}
           {result && (
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
+            <p className="flex items-start gap-2 rounded-lg bg-(--info)/10 px-3 py-2 text-xs leading-relaxed text-(--info)">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>
                 {result.stats.sectionsScanned} sections scanned,{" "}
                 {result.stats.queriesRun} searches,{" "}
                 {result.stats.candidatesConsidered} candidates considered.{" "}
@@ -138,22 +185,8 @@ export function ReviewPanel({
                 {result.stats.skippedNoAbstract > 0 &&
                   `, ${result.stats.skippedNoAbstract} entries skipped for lack of an abstract`}
                 ). Model: {result.model}
-              </p>
-              <Button
-                onClick={start}
-                variant="outline"
-                size="sm"
-                disabled={phase === "running"}
-                className="shrink-0"
-              >
-                {phase === "running" ? (
-                  <Loader2 className="animate-spin" aria-hidden />
-                ) : (
-                  <ScanSearch aria-hidden />
-                )}
-                Run again
-              </Button>
-            </div>
+              </span>
+            </p>
           )}
 
           <FindingGroup
@@ -174,16 +207,68 @@ export function ReviewPanel({
                 errors
               </summary>
               <Separator />
-              <ul className="flex flex-col gap-1 px-4 py-3 text-xs text-muted-foreground">
+              <ul className="flex flex-col divide-y divide-border/60">
                 {result.notes.map((note, i) => (
-                  <li key={`note-${i}`}>{note}</li>
+                  <li
+                    key={`note-${i}`}
+                    className="flex items-start gap-2 px-4 py-2 text-xs leading-relaxed text-muted-foreground"
+                  >
+                    {/(failed|error|rate-limited|aborted|interrupted)/i.test(
+                      note,
+                    ) ? (
+                      <CircleAlert
+                        className="mt-0.5 size-3.5 shrink-0 text-(--warning)"
+                        aria-hidden
+                      />
+                    ) : (
+                      <Info
+                        className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
+                        aria-hidden
+                      />
+                    )}
+                    <span>{note}</span>
+                  </li>
                 ))}
               </ul>
             </details>
           )}
+
+          {result && (
+            // Sticky action bar at the panel bottom, mirroring the edit
+            // tab's composer; -mx/-mb bleed over the tab padding.
+            <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 border-t border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <Button
+                onClick={start}
+                disabled={phase === "running"}
+                className="w-full"
+              >
+                {phase === "running" ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : (
+                  <ScanSearch aria-hidden />
+                )}
+                {result.partial ? "Resume review" : "Run again"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+/** Placeholder shaped like a FindingCard: title + badges, then detail lines. */
+function FindingSkeleton({ short }: { short?: boolean }) {
+  return (
+    <div className="flex flex-col gap-2.5 rounded-xl border border-border p-4">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-3.5 w-36" />
+        <Skeleton className="h-5 w-20 rounded-4xl" />
+        <Skeleton className="h-5 w-24 rounded-4xl" />
+      </div>
+      <Skeleton className="h-3 w-full" />
+      <Skeleton className={short ? "h-3 w-1/2" : "h-3 w-5/6"} />
+    </div>
   );
 }
 
